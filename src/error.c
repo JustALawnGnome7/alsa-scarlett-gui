@@ -9,6 +9,11 @@ void show_error(GtkWindow *w, char *s) {
     return;
   }
 
+#if GTK_CHECK_VERSION(4, 10, 0)
+  GtkAlertDialog *dialog = gtk_alert_dialog_new("%s", s);
+  gtk_alert_dialog_show(dialog, w);
+  g_object_unref(dialog);
+#else
   GtkWidget *dialog = gtk_message_dialog_new(
     w,
     GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL,
@@ -20,4 +25,5 @@ void show_error(GtkWindow *w, char *s) {
   gtk_widget_set_visible(dialog, TRUE);
 
   g_signal_connect(dialog, "response", G_CALLBACK(gtk_window_destroy), NULL);
+#endif
 }
