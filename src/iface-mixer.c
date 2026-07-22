@@ -753,7 +753,19 @@ static void create_input_level_control(
   int               current_row,
   int               column_num
 ) {
-  GtkWidget *w = make_boolean_alsa_elem(elem, "Inst", NULL);
+  // The classic control is {Line, Inst}, for which a single "Inst"
+  // toggle says everything. Other sets exist: the Thunderbolt Clarett
+  // 8PreX has separate XLR and 1/4" jacks per input, so its preamps
+  // select {Mic, Line, Inst} on inputs 1-2 and {Mic, Line} on 3-8 —
+  // neither of which a toggle labelled "Inst" can represent. Anything
+  // that isn't the classic pair gets a drop-down of its own item names.
+  int is_line_inst =
+    alsa_get_item_count(elem) == 2 &&
+    strcmp(alsa_get_item_name(elem, 1), "Inst") == 0;
+
+  GtkWidget *w = is_line_inst
+    ? make_boolean_alsa_elem(elem, "Inst", NULL)
+    : make_drop_down_alsa_elem(elem, NULL);
   gtk_widget_add_css_class(w, "inst");
   gtk_widget_set_hexpand(w, TRUE);
   gtk_widget_set_tooltip_text(w, level_descr);
