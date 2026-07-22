@@ -21,6 +21,11 @@ struct gain {
   struct alsa_elem *elem;
   struct alsa_elem *direct_monitor_elem;
   struct alsa_elem *monitor_mix_elem[2];
+
+  // Optional SW/HW selector for this output (see gain_set_hw_gate): while it reads HW
+  // the hardware volume knob owns the level and this fader does nothing.
+  struct alsa_elem *hw_gate_elem;
+
   GtkWidget        *vbox;
   GtkWidget        *dial;
   GtkWidget        *label;
@@ -70,6 +75,42 @@ static void gain_changed(GtkWidget *widget, struct gain *data) {
   alsa_set_elem_value(monitor_mix, value);
 }
 
+// A fader is usable when the control is writable AND, where the device has a SW/HW
+// selector for that output, while it is set to SW. Drivers that mark the control
+// read-only in HW mode (scarlett2) are covered by the first test; devices whose
+// controls live in userspace (fcp-server) can't flip access after creation, so the
+// selector's value is what says the fader is out of circuit.
+static void update_gain_sensitive(struct gain *data) {
+  int usable = alsa_get_elem_writable(data->elem);
+
+  if (usable && data->hw_gate_elem && alsa_get_elem_value(data->hw_gate_elem))
+    usable = 0;
+
+  gtk_widget_set_sensitive(data->dial, usable);
+}
+
+static void hw_gate_updated(
+  struct alsa_elem *elem,
+  void             *private
+) {
+  update_gain_sensitive(private);
+}
+
+void gain_set_hw_gate(GtkWidget *gain_widget, struct alsa_elem *gate_elem) {
+  struct gain *data;
+
+  if (!gain_widget || !gate_elem)
+    return;
+
+  data = g_object_get_data(G_OBJECT(gain_widget), "gain_data");
+  if (!data)
+    return;
+
+  data->hw_gate_elem = gate_elem;
+  alsa_elem_add_callback(gate_elem, hw_gate_updated, data, NULL);
+  update_gain_sensitive(data);
+}
+
 static void gain_updated(
   struct alsa_elem *elem,
   void             *private
@@ -80,8 +121,7 @@ static void gain_updated(
   if (data->syncing)
     return;
 
-  int is_writable = alsa_get_elem_writable(elem);
-  gtk_widget_set_sensitive(data->dial, is_writable);
+  update_gain_sensitive(data);
 
   int alsa_value = alsa_get_elem_value(elem);
 

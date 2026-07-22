@@ -359,6 +359,22 @@ static struct routing_snk *get_analogue_output_snk(
   return NULL;
 }
 
+// The SW/HW selector for the analogue output numbered lr_num, or NULL if this device
+// has none. Named "Line Out N Volume Control Playback Enum" on the devices that do.
+static struct alsa_elem *get_sw_hw_elem(GPtrArray *elems, int lr_num) {
+  for (int i = 0; i < elems->len; i++) {
+    struct alsa_elem *elem = g_ptr_array_index(elems, i);
+
+    if (!elem->card)
+      continue;
+    if (!strstr(elem->name, "Volume Control Playback Enum"))
+      continue;
+    if (elem->lr_num == lr_num)
+      return elem;
+  }
+  return NULL;
+}
+
 // Set up monitor group sensitivity tracking for an output volume widget
 static void setup_output_volume_monitor_group(
   struct alsa_card *card,
@@ -1208,6 +1224,7 @@ static void create_output_controls(
       if (strstr(elem->name, "Playback Volume")) {
         w = make_gain_alsa_elem(elem, 1, WIDGET_GAIN_TAPER_LOG, 1, TRUE);
         setup_output_volume_monitor_group(card, w, elem->lr_num);
+        gain_set_hw_gate(w, get_sw_hw_elem(elems, elem->lr_num));
         gtk_grid_attach(
           GTK_GRID(output_grid), w, elem->lr_num - 1 + line_1_col, 2, 1, 1
         );

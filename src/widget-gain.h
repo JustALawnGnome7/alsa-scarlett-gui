@@ -24,6 +24,11 @@ GtkWidget *make_gain_alsa_elem(
 // Get the dial widget from a gain widget container (for level updates)
 GtkWidget *get_gain_dial(GtkWidget *gain_widget);
 
+// Attach an output's SW/HW selector to its fader: the dial goes insensitive while the
+// selector reads HW, because the hardware volume knob owns the level and the fader has
+// no effect. Safe to call with a NULL gate (devices without a selector).
+void gain_set_hw_gate(GtkWidget *gain_widget, struct alsa_elem *gate_elem);
+
 // Clean up a gain widget (remove callbacks) before destroying it
 // Must be called before unreffing/destroying the widget
 void cleanup_gain_widget(GtkWidget *gain_widget);
