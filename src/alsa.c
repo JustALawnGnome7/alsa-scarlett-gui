@@ -1530,13 +1530,47 @@ static void alsa_subscribe(struct alsa_card *card) {
   snd_ctl_poll_descriptors(card->handle, &card->pfd, 1);
 }
 
+// Read the model slug the Thunderbolt Clarett driver publishes at
+// /proc/asound/card<N>/clarett, e.g. "clarett-2pre".
+//
+// The whole Thunderbolt Clarett line shares one PCI ID, so the model is
+// only identifiable from this file; fcp-server keys its device maps on
+// the same string.
+static char *alsa_get_clarett_slug(struct alsa_card *card) {
+  char path[256];
+  snprintf(path, sizeof(path), "/proc/asound/card%d/clarett", card->num);
+
+  FILE *f = fopen(path, "r");
+  if (!f)
+    return NULL;
+
+  char line[128];
+  char *slug = NULL;
+
+  while (fgets(line, sizeof(line), f)) {
+    char value[64];
+
+    if (sscanf(line, "slug: %63s", value) == 1) {
+      slug = strdup(value);
+      break;
+    }
+  }
+  fclose(f);
+
+  return slug;
+}
+
 static void alsa_get_usbid(struct alsa_card *card) {
   char path[256];
   snprintf(path, 256, "/proc/asound/card%d/usbid", card->num);
 
   FILE *f = fopen(path, "r");
   if (!f) {
-    fprintf(stderr, "can't open %s: %s\n", path, strerror(errno));
+    // Not a USB card (the Thunderbolt Clarett is PCIe); leave pid 0.
+    // Everything keyed on the USB PID (port names, firmware images)
+    // simply doesn't match, which is the intended fallback.
+    if (errno != ENOENT)
+      fprintf(stderr, "can't open %s: %s\n", path, strerror(errno));
     return;
   }
 
@@ -1561,6 +1595,14 @@ static void alsa_get_usbid(struct alsa_card *card) {
 // controlC<N>/device points to the ALSA sound card, whose own
 // device symlink points to the USB interface; the parent of
 // that is the USB device which has the serial file.
+//
+// card->serial is the key for per-device saved state (presets, custom
+// names, window layout), so a non-USB card needs something in its
+// place. The Thunderbolt Clarett has no usable unit identity to offer:
+// its serial-number registers read a fixed placeholder on every unit
+// of every model. Its model slug is therefore the most specific stable
+// key available, and state is shared between two units of the same
+// model.
 static void alsa_get_serial_number(struct alsa_card *card) {
   char path[128];
   snprintf(
@@ -1571,9 +1613,12 @@ static void alsa_get_serial_number(struct alsa_card *card) {
 
   FILE *f = fopen(path, "r");
   if (!f) {
-    fprintf(
-      stderr, "can't open %s: %s\n", path, strerror(errno)
-    );
+    card->serial = alsa_get_clarett_slug(card);
+    card->serial_is_model_only = !!card->serial;
+    if (!card->serial)
+      fprintf(
+        stderr, "can't open %s: %s\n", path, strerror(errno)
+      );
     return;
   }
 
@@ -1677,6 +1722,30 @@ static void card_init(struct alsa_card *card) {
   complete_card_init(card);
 }
 
+// Is this a card we know how to talk to?
+//
+// USB devices are named after their USB product string ("Scarlett 4th
+// Gen 16i16", "Clarett+ 2Pre", "Vocaster Two"), so a name prefix is
+// enough for them. Non-USB Focusrite interfaces are named by their own
+// driver and need not follow that convention: the Thunderbolt Clarett
+// (snd-clarett) names its cards "Focusrite Clarett 2Pre" and so on, so
+// match the ALSA driver name as well.
+static int is_supported_card(snd_ctl_card_info_t *info) {
+  const char *name = snd_ctl_card_info_get_name(info);
+  const char *driver = snd_ctl_card_info_get_driver(info);
+
+  if (strncmp(name, "Scarlett", 8) == 0 ||
+      strncmp(name, "Clarett", 7) == 0 ||
+      strncmp(name, "Vocaster", 8) == 0)
+    return 1;
+
+  // Thunderbolt Clarett (2Pre/4Pre/8Pre/8PreX), driver name "Clarett"
+  if (strcmp(driver, "Clarett") == 0)
+    return 1;
+
+  return 0;
+}
+
 static void alsa_scan_cards(void) {
   snd_ctl_card_info_t *info;
   snd_ctl_t           *ctl;
@@ -1701,9 +1770,7 @@ static void alsa_scan_cards(void) {
     if (err < 0)
       goto next;
 
-    if (strncmp(snd_ctl_card_info_get_name(info), "Scarlett", 8) != 0 &&
-        strncmp(snd_ctl_card_info_get_name(info), "Clarett", 7) != 0 &&
-        strncmp(snd_ctl_card_info_get_name(info), "Vocaster", 8) != 0)
+    if (!is_supported_card(info))
       goto next;
 
     // is there already an entry for this card in alsa_cards?

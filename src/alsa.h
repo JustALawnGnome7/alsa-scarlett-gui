@@ -268,6 +268,12 @@ struct alsa_card {
   char               *device;
   uint32_t            pid;
   char               *serial;
+
+  // serial identifies the model but not the individual unit (a device
+  // with no per-unit serial to report); it still keys saved state, but
+  // isn't worth showing in window titles
+  int                 serial_is_model_only;
+
   char               *name;
   int                 driver_type;
   char               *fcp_socket;

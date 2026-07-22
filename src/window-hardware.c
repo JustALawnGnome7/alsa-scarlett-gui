@@ -64,6 +64,15 @@ struct hw_info clarett_plus_info[] = {
   { }
 };
 
+// Thunderbolt, not USB: driven by the out-of-tree snd-clarett driver
+// plus fcp-server, not by the in-kernel scarlett2 driver.
+struct hw_info clarett_thunderbolt_info[] = {
+  { "Clarett 2Pre" },
+  { "Clarett 4Pre" },
+  { "Clarett 8PreX" },
+  { }
+};
+
 struct hw_info vocaster_info[] = {
   { "Vocaster One" },
   { "Vocaster Two" },
@@ -88,6 +97,9 @@ struct hw_cat hw_cat[] = {
   },
   { "Clarett+",
     clarett_plus_info
+  },
+  { "Clarett Thunderbolt",
+    clarett_thunderbolt_info
   },
   { "Vocaster",
     vocaster_info

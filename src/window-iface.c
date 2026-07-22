@@ -48,7 +48,7 @@ char *get_card_window_title(struct alsa_card *card) {
   }
 
   // no custom name or it's empty, use serial number if available
-  if (card->serial && *card->serial)
+  if (card->serial && *card->serial && !card->serial_is_model_only)
     return g_strdup_printf("%s - %s", card->name, card->serial);
 
   // no serial number either, just use card name
