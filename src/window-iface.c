@@ -263,8 +263,12 @@ void create_card_window(struct alsa_card *card) {
   }
 
   // set has_levels flag and load preferences before building UI
+  // Gate the Levels menu/window on the control it actually needs -- the
+  // "Level Meter" element -- not on "Firmware Version" (a loose proxy that
+  // is present on FCP devices like the Clarett Thunderbolt even when the
+  // meter map, and thus the meter control, was never created).
   card->has_levels =
-    !!get_elem_by_name(card->elems, "Firmware Version");
+    !!get_elem_by_name(card->elems, "Level Meter");
   load_preferences(card);
 
   // Firmware update required
