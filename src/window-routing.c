@@ -587,6 +587,7 @@ void arrange_snk_grid(struct alsa_card *card, int port_category) {
   int is_horiz = is_horiz_port_category(port_category);
   int pos = 0;
 
+  // Unparent all matching widgets first.
   for (int i = 0; i < card->routing_snks->len; i++) {
     struct routing_snk *r_snk = &g_array_index(
       card->routing_snks, struct routing_snk, i
@@ -597,23 +598,42 @@ void arrange_snk_grid(struct alsa_card *card, int port_category) {
         !r_snk->socket_widget)
       continue;
 
-    // Unparent all widgets
     unparent_from_grid(grid, r_snk->socket_widget);
     unparent_from_grid(grid, r_snk->label_widget);
+  }
 
-    if (!is_snk_visible(r_snk))
-      continue;
+  // Attach visible sinks in array order, but keep loopback sinks last so the
+  // Loopback channels always appear below the PCM inputs (the map interleaves
+  // the loopback pins mid-block, matching the hardware capture stream).
+  for (int pass = 0; pass < 2; pass++) {
+    for (int i = 0; i < card->routing_snks->len; i++) {
+      struct routing_snk *r_snk = &g_array_index(
+        card->routing_snks, struct routing_snk, i
+      );
 
-    if (is_horiz) {
-      // Horizontal: label at row 0, socket at row 1 (sinks point down)
-      gtk_grid_attach(GTK_GRID(grid), r_snk->label_widget, pos, 0, 1, 1);
-      gtk_grid_attach(GTK_GRID(grid), r_snk->socket_widget, pos, 1, 1, 1);
-    } else {
-      // Vertical: socket at col 0, label at col 1
-      gtk_grid_attach(GTK_GRID(grid), r_snk->socket_widget, 0, pos, 1, 1);
-      gtk_grid_attach(GTK_GRID(grid), r_snk->label_widget, 1, pos, 1, 1);
+      if (!r_snk->elem ||
+          r_snk->elem->port_category != port_category ||
+          !r_snk->socket_widget)
+        continue;
+
+      if (!is_snk_visible(r_snk))
+        continue;
+
+      // pass 0: non-loopback; pass 1: loopback
+      if (r_snk->elem->is_loopback != pass)
+        continue;
+
+      if (is_horiz) {
+        // Horizontal: label at row 0, socket at row 1 (sinks point down)
+        gtk_grid_attach(GTK_GRID(grid), r_snk->label_widget, pos, 0, 1, 1);
+        gtk_grid_attach(GTK_GRID(grid), r_snk->socket_widget, pos, 1, 1, 1);
+      } else {
+        // Vertical: socket at col 0, label at col 1
+        gtk_grid_attach(GTK_GRID(grid), r_snk->socket_widget, 0, pos, 1, 1);
+        gtk_grid_attach(GTK_GRID(grid), r_snk->label_widget, 1, pos, 1, 1);
+      }
+      pos++;
     }
-    pos++;
   }
 
   if (card->routing_lines)
