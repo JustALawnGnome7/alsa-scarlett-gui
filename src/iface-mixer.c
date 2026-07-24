@@ -38,6 +38,15 @@ static struct routing_snk *get_output_r_snk(
     if (elem->port_category != PC_HW)
       continue;
 
+    // Output gain widgets exist only for analogue outputs, and lr_num is
+    // parsed from the trailing number, so "S/PDIF Output 1" and "Analogue
+    // Output 1" both have lr_num 1. Without this hw_type check the first
+    // PC_HW match wins, and a device whose sink list orders S/PDIF before
+    // the analogue outputs (e.g. the Thunderbolt Clarett, sinks ordered by
+    // router pin) binds the analogue gain widget's meter to the S/PDIF sink.
+    if (elem->hw_type != HW_TYPE_ANALOGUE)
+      continue;
+
     if (elem->lr_num == port_num)
       return r_snk;
   }
