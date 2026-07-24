@@ -81,6 +81,15 @@ static void routing_preset_link(
     if (elem->port_category != snk_port_category)
       break;
 
+    // Never route into a loopback sink from a preset: Focusrite Control leaves
+    // the loopback channels out of its routing presets, and the loopback pins
+    // are interleaved among the PCM sinks, so without this the Direct preset
+    // spills the trailing hardware inputs (e.g. ADAT 1-2) into Loopback 1-2.
+    if (elem->is_loopback) {
+      snk_idx++;
+      continue;
+    }
+
     // do the assignment
     alsa_set_elem_value(elem, r_src->id);
 
