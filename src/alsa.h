@@ -241,6 +241,10 @@ struct alsa_elem {
   int hw_type;
   int lr_num;
 
+  // routing sink is a Loopback capture channel (PC_PCM, but its lr_num shares
+  // the PCM number space, so this disambiguates naming and stereo pairing)
+  int is_loopback;
+
   // the callback functions for this ALSA control element
   GList *callbacks;
 

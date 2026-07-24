@@ -313,6 +313,8 @@ char *get_snk_generic_name(struct routing_snk *snk) {
       );
 
     case PC_PCM:
+      if (elem->is_loopback)
+        return g_strdup_printf("Loopback %d", elem->lr_num);
       return g_strdup_printf("PCM %d", elem->lr_num);
 
     case PC_MIX:

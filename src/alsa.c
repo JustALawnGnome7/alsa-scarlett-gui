@@ -935,7 +935,9 @@ static void get_routing_snks(struct alsa_card *card) {
                strncmp(elem->name, "Loopback", 8) == 0 ||
                strncmp(elem->name, "Input Source", 12) == 0) {
       // Loopback capture channels are part of the PCM capture stream (device -> host).
+      // Flag them so naming/pairing don't confuse "Loopback 1" with "PCM 01" (both lr_num 1).
       elem->port_category = PC_PCM;
+      elem->is_loopback = (strncmp(elem->name, "Loopback", 8) == 0);
     } else if (strstr(elem->name, "Playback Enu")) {
       elem->port_category = PC_HW;
 

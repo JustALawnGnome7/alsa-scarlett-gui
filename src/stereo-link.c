@@ -83,6 +83,10 @@ char *get_snk_generic_pair_name(struct routing_snk *snk) {
       );
 
     case PC_PCM:
+      if (elem->is_loopback)
+        return g_strdup_printf(
+          "Loopback %d–%d", elem->lr_num, elem->lr_num + 1
+        );
       return g_strdup_printf("PCM %d–%d", elem->lr_num, elem->lr_num + 1);
 
     case PC_MIX:
@@ -207,6 +211,10 @@ struct routing_snk *get_snk_partner(struct routing_snk *snk) {
     if (other->elem->port_category != elem->port_category)
       continue;
     if (elem->port_category == PC_HW && other->elem->hw_type != elem->hw_type)
+      continue;
+    // Loopback shares the PCM number space, so a Loopback channel must only pair
+    // with the other Loopback channel, never with the like-numbered PCM channel.
+    if (other->elem->is_loopback != elem->is_loopback)
       continue;
 
     // Expect partner to have corresponding lr_num
