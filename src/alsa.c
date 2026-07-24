@@ -889,7 +889,8 @@ static int is_elem_routing_snk(struct alsa_elem *elem) {
   if (strstr(elem->name, "Capture Enum") && (
        strncmp(elem->name, "PCM ", 4) == 0 ||
        strncmp(elem->name, "Mixer ", 6) == 0 ||
-       strncmp(elem->name, "DSP ", 4) == 0
+       strncmp(elem->name, "DSP ", 4) == 0 ||
+       strncmp(elem->name, "Loopback ", 9) == 0
      ))
     return 1;
 
@@ -931,7 +932,9 @@ static void get_routing_snks(struct alsa_card *card) {
     } else if (strncmp(elem->name, "DSP", 3) == 0) {
       elem->port_category = PC_DSP;
     } else if (strncmp(elem->name, "PCM", 3) == 0 ||
+               strncmp(elem->name, "Loopback", 8) == 0 ||
                strncmp(elem->name, "Input Source", 12) == 0) {
+      // Loopback capture channels are part of the PCM capture stream (device -> host).
       elem->port_category = PC_PCM;
     } else if (strstr(elem->name, "Playback Enu")) {
       elem->port_category = PC_HW;
