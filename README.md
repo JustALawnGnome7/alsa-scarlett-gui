@@ -18,9 +18,9 @@ docs still need some updating.
 - Scarlett 2nd Gen 6i6, 18i8, 18i20
 - Scarlett 3rd Gen Solo, 2i2, 4i4, 8i6, 18i8, 18i20
 - Scarlett 4th Gen Solo, 2i2, 4i4, 16i16, 18i16, 18i20
+- Clarett (Thunderbolt) 2Pre, 4Pre, 8PreX
 - Clarett 2Pre, 4Pre, 8Pre USB
 - Clarett+ 2Pre, 4Pre, 8Pre
-- Clarett 2Pre, 4Pre, 8PreX Thunderbolt
 - Vocaster One and Vocaster Two
 
 The Thunderbolt Clarett interfaces are not USB devices and are not

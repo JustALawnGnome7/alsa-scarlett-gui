@@ -50,6 +50,17 @@ struct hw_info gen_4_info[] = {
   { }
 };
 
+// Thunderbolt, not USB: driven by the out-of-tree snd-clarett driver
+// plus fcp-server, not by the in-kernel scarlett2 driver. The original
+// Clarett line (2015) has no USB/+ suffix and predates those models, so
+// it is listed first among the Claretts.
+struct hw_info clarett_thunderbolt_info[] = {
+  { "Clarett 2Pre" },
+  { "Clarett 4Pre" },
+  { "Clarett 8PreX" },
+  { }
+};
+
 struct hw_info clarett_usb_info[] = {
   { "Clarett 2Pre USB" },
   { "Clarett 4Pre USB" },
@@ -61,15 +72,6 @@ struct hw_info clarett_plus_info[] = {
   { "Clarett+ 2Pre" },
   { "Clarett+ 4Pre" },
   { "Clarett+ 8Pre" },
-  { }
-};
-
-// Thunderbolt, not USB: driven by the out-of-tree snd-clarett driver
-// plus fcp-server, not by the in-kernel scarlett2 driver.
-struct hw_info clarett_thunderbolt_info[] = {
-  { "Clarett 2Pre" },
-  { "Clarett 4Pre" },
-  { "Clarett 8PreX" },
   { }
 };
 
@@ -92,14 +94,14 @@ struct hw_cat hw_cat[] = {
   { "4th Gen",
     gen_4_info
   },
+  { "Clarett (Thunderbolt)",
+    clarett_thunderbolt_info
+  },
   { "Clarett USB",
     clarett_usb_info
   },
   { "Clarett+",
     clarett_plus_info
-  },
-  { "Clarett Thunderbolt",
-    clarett_thunderbolt_info
   },
   { "Vocaster",
     vocaster_info
