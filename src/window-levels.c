@@ -241,9 +241,16 @@ static GtkWidget *create_levels_controls_with_labels(
 
   data->meters = g_malloc0(count * sizeof(GtkWidget *));
 
-  int row = 1;
+  int next_row = 1;
   int max_count = 0;
-  char *current_type = NULL;
+
+  // Map each label "type" (e.g. "Sink PCM") to its grid row. A type that
+  // recurs non-contiguously — as "Sink PCM" does on the Clarett 8PreX, whose
+  // register-ordered capture block interleaves the Loopback pair between PCM
+  // 10 and 11 — reuses its existing row instead of starting a second one, so
+  // the two "Sink PCM" lines combine into one.
+  GHashTable *type_rows =
+    g_hash_table_new_full(g_str_hash, g_str_equal, free, NULL);
 
   for (int meter_num = 0; meter_num < count; meter_num++) {
     char *label = strdup(level_meter_elem->meter_labels[meter_num]);
@@ -288,13 +295,17 @@ static GtkWidget *create_levels_controls_with_labels(
     if (label_num > max_count)
       max_count = label_num;
 
-    if (!current_type || strcmp(current_type, label)) {
-      row++;
+    // find this type's row, allocating a new one the first time it is seen;
+    // later occurrences (even after an intervening type) reuse the same row
+    int row;
+    gpointer row_val;
+    if (g_hash_table_lookup_extended(type_rows, label, NULL, &row_val)) {
+      row = GPOINTER_TO_INT(row_val);
+    } else {
+      row = ++next_row;
+      g_hash_table_insert(type_rows, strdup(label), GINT_TO_POINTER(row));
 
-      free(current_type);
-      current_type = strdup(label);
-
-      GtkWidget *l = gtk_label_new(current_type);
+      GtkWidget *l = gtk_label_new(label);
       gtk_widget_set_halign(l, GTK_ALIGN_END);
 
       // add the type label
@@ -321,7 +332,7 @@ static GtkWidget *create_levels_controls_with_labels(
     free(label);
   }
 
-  free(current_type);
+  g_hash_table_destroy(type_rows);
 
   for (int col = 1; col <= max_count; col++) {
     char s[20];
