@@ -86,6 +86,37 @@ static void add_clock_source_control(
   gtk_box_append(GTK_BOX(b), w);
 }
 
+// Meter Source selects which input bank the front-panel meter bridge
+// displays. Present on the Clarett 8PreX (Analogue/S/PDIF/ADAT 1/ADAT 2);
+// absent on models with a single meter source, so this is a no-op there.
+static void add_meter_source_control(
+  struct alsa_card *card,
+  GtkWidget        *global_controls
+) {
+  GPtrArray *elems = card->elems;
+
+  struct alsa_elem *meter_source = get_elem_by_prefix(elems, "Meter Source");
+
+  if (!meter_source)
+    return;
+
+  GtkWidget *b = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+  gtk_widget_set_tooltip_text(
+    b,
+    "Meter Source selects which input bank the front-panel level "
+    "meters display: Analogue, S/PDIF, ADAT 1, or ADAT 2."
+  );
+  gtk_box_append(GTK_BOX(global_controls), b);
+
+  GtkWidget *l = gtk_label_new("Meter Source");
+  GtkWidget *w = make_drop_down_alsa_elem(meter_source, NULL);
+  gtk_widget_add_css_class(w, "meter-source");
+  gtk_widget_add_css_class(w, "fixed");
+
+  gtk_box_append(GTK_BOX(b), l);
+  gtk_box_append(GTK_BOX(b), w);
+}
+
 static void add_sync_status_control(
   struct alsa_card *card,
   GtkWidget        *global_controls
@@ -1386,6 +1417,7 @@ static void create_global_controls(
   }
 
   add_clock_source_control(card, column[0]);
+  add_meter_source_control(card, column[0]);
   add_sync_status_control(card, column[1]);
   add_power_status_control(card, column[1]);
   add_sample_rate_control(card, column[2]);
