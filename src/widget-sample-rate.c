@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2024-2025 Geoffrey D. Bennett <g@b4.vu>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include <glob.h>
+
 #include "asound-stream-parser.h"
 #include "gtkhelper.h"
 #include "hw-io-availability.h"
@@ -13,6 +15,7 @@ struct sample_rate {
   GtkWidget        *button;
   guint             source;
   char             *path;
+  int               is_usb;        // stream0 available (USB) vs hw_params
   int               sample_rate;
   int               is_current;  // showing current vs last-seen value
   int               last_valid_sample_rate;
@@ -159,6 +162,58 @@ static void parse_stream_altset_channels(struct sample_rate *data) {
   fclose(file);
 }
 
+// Read the current sample rate from a PCM substream's hw_params file.
+//
+// Generic across drivers that don't expose a USB-style stream0 (e.g. the
+// Thunderbolt Clarett/Red driver). Every pcm*/sub* under the card is
+// scanned so whichever direction happens to be open is picked up. A
+// substream that no application has opened reads the single line "closed";
+// an open one carries a line like "rate: 48000 (48000/1)".
+//
+// There is no altset concept here, so channel-count availability is left
+// at its default (0 = all ports available).
+static int get_sample_rate_from_hw_params(struct sample_rate *data) {
+  char *pattern = g_strdup_printf(
+    "/proc/asound/card%d/pcm*/sub*/hw_params", data->card->num
+  );
+
+  glob_t globbuf;
+  int rc = glob(pattern, 0, NULL, &globbuf);
+  g_free(pattern);
+
+  if (rc != 0)
+    return 0;
+
+  int sample_rate = 0;
+
+  for (size_t i = 0; i < globbuf.gl_pathc && sample_rate == 0; i++) {
+    FILE *file = fopen(globbuf.gl_pathv[i], "r");
+    if (!file)
+      continue;
+
+    char *line = NULL;
+    size_t len = 0;
+
+    while (getline(&line, &len, file) != -1) {
+      // no stream open on this substream
+      if (strncmp(line, "closed", 6) == 0)
+        break;
+
+      if (strncmp(line, "rate:", 5) == 0) {
+        sample_rate = atoi(line + 5);
+        break;
+      }
+    }
+
+    free(line);
+    fclose(file);
+  }
+
+  globfree(&globbuf);
+
+  return sample_rate;
+}
+
 // Find the capture altset that supports a given sample rate
 static int get_capture_altset_for_rate(struct sample_rate *data, int rate) {
   if (rate <= 0)
@@ -281,9 +336,15 @@ static gboolean update_sample_rate(struct sample_rate *data) {
 
   int playback_altset = 0;
   int capture_altset = 0;
-  int sample_rate = get_sample_rate_and_altsets(
-    data, &playback_altset, &capture_altset
-  );
+  int sample_rate;
+
+  if (data->is_usb)
+    sample_rate = get_sample_rate_and_altsets(
+      data, &playback_altset, &capture_altset
+    );
+  else
+    // non-USB (e.g. Thunderbolt): rate from hw_params, no altsets
+    sample_rate = get_sample_rate_from_hw_params(data);
 
   // track last valid values for when stream becomes inactive
   if (sample_rate > 0) {
@@ -387,10 +448,19 @@ GtkWidget *make_sample_rate_widget(
 
   // can only update if it's a real card
   if (card->num != SIMULATED_CARD_NUM) {
-    data->path = g_strdup_printf("/proc/asound/card%d/stream0", card->num);
+    char *stream0_path =
+      g_strdup_printf("/proc/asound/card%d/stream0", card->num);
 
-    // parse channel counts per altset once at init
-    parse_stream_altset_channels(data);
+    if (g_file_test(stream0_path, G_FILE_TEST_EXISTS)) {
+      // USB device: stream0 carries the rate and per-altset channel counts
+      data->is_usb = 1;
+      data->path = stream0_path;
+      parse_stream_altset_channels(data);
+    } else {
+      // non-USB (e.g. Thunderbolt): rate comes from pcm hw_params instead
+      data->is_usb = 0;
+      g_free(stream0_path);
+    }
 
     data->source =
       g_timeout_add_seconds(1, (GSourceFunc)update_sample_rate, data);
