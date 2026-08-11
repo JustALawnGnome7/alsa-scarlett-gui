@@ -894,7 +894,14 @@ static int is_elem_routing_snk(struct alsa_elem *elem) {
      ))
     return 1;
 
-  if (strstr(elem->name, "Playback Enum") && (
+  // Routing sinks in these categories always name a physical output channel
+  // ("S/PDIF Output 2 Playback Enum", "Analogue 3 Playback Enum", ...). A
+  // device-setting enum that shares the category prefix but names no channel -
+  // e.g. the Clarett "S/PDIF Source Playback Enum" (S/PDIF *output connector*
+  // select) - is not a sink; excluding "Source" keeps it out of the router,
+  // where it would have no channel number and desync the sink count (assert).
+  if (strstr(elem->name, "Playback Enum") &&
+      !strstr(elem->name, "Source") && (
        strncmp(elem->name, "Analogue ", 9) == 0 ||
        strncmp(elem->name, "S/PDIF ", 7) == 0 ||
        strncmp(elem->name, "ADAT ", 5) == 0

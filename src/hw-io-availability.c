@@ -108,8 +108,12 @@ void update_hw_io_limits(struct alsa_card *card) {
     }
   }
 
-  // No warning for simulated devices (no PID) or devices without a mode
-  if (!mode || card->num == SIMULATED_CARD_NUM)
+  // No warning when the limits genuinely can't be looked up: simulated
+  // devices, devices without a mode selector, or non-USB cards. The
+  // Thunderbolt Clarett is PCIe and reports pid 0 (see card->pid), so the
+  // USB-PID-keyed table never matches by design - limits stay at -1 (all
+  // available), which is the intended fallback, not an error to report.
+  if (!mode || card->num == SIMULATED_CARD_NUM || card->pid == 0)
     return;
 
   fprintf(stderr, "Unknown Digital I/O config: pid=0x%04x mode=%s sr_cat=%d\n",
