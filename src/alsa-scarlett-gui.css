@@ -267,6 +267,7 @@ button.toggle {
   text-shadow: 0 0 5px #005000, 0 0 15px #005000;
 }
 
+/* Input Level Checked (Line/Inst toggle) */
 .window-frame button.inst:checked {
   text-shadow: 0 0 5px #ff0000, 0 0 15px #ff0000;
 }
@@ -277,6 +278,44 @@ button.toggle {
 
 .window-frame .gen4 button.inst:checked:disabled {
   text-shadow: 0 0 5px #005000, 0 0 15px #005000;
+}
+
+/* Input Level Selections (drop-down; e.g. the Clarett 8PreX, whose
+ * separate XLR and 1/4" jacks make the level a Mic/Line/Inst choice
+ * rather than a Line/Inst toggle). Colour follows the selected item so
+ * the preamp path is readable at a glance across a row of inputs. Line
+ * is the neutral path: grey and unlit like an unengaged toggle, so that
+ * the two engaged states are the only things that draw the eye. It stays
+ * sensitive; only the disabled rules below dim it further.
+ */
+.window-frame button.inst.selected-line > label {
+  color: #808080;
+  text-shadow: none;
+}
+
+.window-frame button.inst.selected-inst > label {
+  color: #ffffff;
+  text-shadow: 0 0 5px #ff0000, 0 0 15px #ff0000;
+}
+
+.window-frame button.inst.selected-mic > label {
+  color: #ffffff;
+  text-shadow: 0 0 5px #ffc000, 0 0 15px #ffc000;
+}
+
+.window-frame button.inst.selected-line:disabled > label {
+  color: #505050;
+  text-shadow: none;
+}
+
+.window-frame button.inst.selected-inst:disabled > label {
+  color: #505050;
+  text-shadow: 0 0 5px #500000, 0 0 15px #500000;
+}
+
+.window-frame button.inst.selected-mic:disabled > label {
+  color: #505050;
+  text-shadow: 0 0 5px #503c00, 0 0 15px #503c00;
 }
 
 .window-frame button.pcm-input-mix:checked {
