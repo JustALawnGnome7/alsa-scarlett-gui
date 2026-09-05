@@ -57,7 +57,16 @@ struct hw_info gen_4_info[] = {
 struct hw_info clarett_thunderbolt_info[] = {
   { "Clarett 2Pre" },
   { "Clarett 4Pre" },
+  { "Clarett 8Pre" },
   { "Clarett 8PreX" },
+  { }
+};
+
+// Same driver and the same protocol as the Thunderbolt Claretts, but a
+// different product line, so it gets its own heading rather than being
+// filed under Clarett.
+struct hw_info red_thunderbolt_info[] = {
+  { "Red 8Line" },
   { }
 };
 
@@ -96,6 +105,9 @@ struct hw_cat hw_cat[] = {
   },
   { "Clarett (Thunderbolt)",
     clarett_thunderbolt_info
+  },
+  { "Red (Thunderbolt)",
+    red_thunderbolt_info
   },
   { "Clarett USB",
     clarett_usb_info
