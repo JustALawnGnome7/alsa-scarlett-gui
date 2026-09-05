@@ -62,15 +62,6 @@ struct hw_info clarett_thunderbolt_info[] = {
   { }
 };
 
-// Same driver and the same protocol as the Thunderbolt Claretts, but a
-// different product line, so it gets its own heading rather than being
-// filed under Clarett. No "(TB)" qualifier: unlike the Clarett, there is
-// no USB Red to tell it apart from.
-struct hw_info red_thunderbolt_info[] = {
-  { "Red 8Line" },
-  { }
-};
-
 struct hw_info clarett_usb_info[] = {
   { "Clarett 2Pre USB" },
   { "Clarett 4Pre USB" },
@@ -82,6 +73,15 @@ struct hw_info clarett_plus_info[] = {
   { "Clarett+ 2Pre" },
   { "Clarett+ 4Pre" },
   { "Clarett+ 8Pre" },
+  { }
+};
+
+// Same driver and the same protocol as the Thunderbolt Claretts, but a
+// different product line, so it gets a heading of its own rather than
+// being filed under Clarett. No "(TB)" qualifier: unlike the Clarett,
+// there is no USB Red to tell it apart from.
+struct hw_info red_thunderbolt_info[] = {
+  { "Red 8Line" },
   { }
 };
 
@@ -107,14 +107,14 @@ struct hw_cat hw_cat[] = {
   { "Clarett (TB)",
     clarett_thunderbolt_info
   },
-  { "Red",
-    red_thunderbolt_info
-  },
   { "Clarett USB",
     clarett_usb_info
   },
   { "Clarett+",
     clarett_plus_info
+  },
+  { "Red",
+    red_thunderbolt_info
   },
   { "Vocaster",
     vocaster_info

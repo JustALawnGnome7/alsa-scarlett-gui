@@ -19,9 +19,9 @@ docs still need some updating.
 - Scarlett 3rd Gen Solo, 2i2, 4i4, 8i6, 18i8, 18i20
 - Scarlett 4th Gen Solo, 2i2, 4i4, 16i16, 18i16, 18i20
 - Clarett (TB) 2Pre, 4Pre, 8Pre, 8PreX
-- Red 8Line
 - Clarett 2Pre, 4Pre, 8Pre USB
 - Clarett+ 2Pre, 4Pre, 8Pre
+- Red 8Line
 - Vocaster One and Vocaster Two
 
 The Thunderbolt interfaces — the Claretts marked (TB), and the Red —

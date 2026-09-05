@@ -15,8 +15,8 @@ GtkWidget *create_iface_unknown_main(void) {
     "– Gen 4: Solo/2i2/4i4/16i16/18i16/18i20\n"
     "– Vocaster One and Two\n"
     "– Clarett (TB) 2Pre/4Pre/8Pre/8PreX\n"
-    "– Red 8Line\n"
-    "– Clarett USB and Clarett+ 2Pre/4Pre/8Pre\n\n"
+    "– Clarett USB and Clarett+ 2Pre/4Pre/8Pre\n"
+    "– Red 8Line\n\n"
 
     "Please check the prerequisites at:\n"
     "https://github.com/geoffreybennett/alsa-scarlett-gui/"
