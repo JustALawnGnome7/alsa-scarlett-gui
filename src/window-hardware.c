@@ -64,7 +64,8 @@ struct hw_info clarett_thunderbolt_info[] = {
 
 // Same driver and the same protocol as the Thunderbolt Claretts, but a
 // different product line, so it gets its own heading rather than being
-// filed under Clarett.
+// filed under Clarett. No "(TB)" qualifier: unlike the Clarett, there is
+// no USB Red to tell it apart from.
 struct hw_info red_thunderbolt_info[] = {
   { "Red 8Line" },
   { }
@@ -103,10 +104,10 @@ struct hw_cat hw_cat[] = {
   { "4th Gen",
     gen_4_info
   },
-  { "Clarett (Thunderbolt)",
+  { "Clarett (TB)",
     clarett_thunderbolt_info
   },
-  { "Red (Thunderbolt)",
+  { "Red",
     red_thunderbolt_info
   },
   { "Clarett USB",
