@@ -13,6 +13,7 @@
 #include "device-port-names.h"
 #include "optional-state.h"
 #include "port-enable.h"
+#include "stringhelper.h"
 #include "widget-boolean.h"
 #include "window-mixer.h"
 #include "window-routing.h"
@@ -57,8 +58,14 @@ char *get_src_generic_pair_name(struct routing_src *src) {
     case PC_PCM:
       return g_strdup_printf("PCM %d–%d", src->lr_num, src->lr_num + 1);
 
-    case PC_MIX:
-      return g_strdup_printf("Mix %c–%c", src->port_num + 'A', src->port_num + 'B');
+    case PC_MIX: {
+      char lbl_l[8], lbl_r[8];
+      return g_strdup_printf(
+        "Mix %s–%s",
+        mix_num_to_label(src->port_num, lbl_l, sizeof(lbl_l)),
+        mix_num_to_label(src->port_num + 1, lbl_r, sizeof(lbl_r))
+      );
+    }
 
     case PC_DSP:
       return g_strdup_printf("DSP %d–%d", src->lr_num, src->lr_num + 1);
@@ -404,14 +411,20 @@ static void pair_name_changed(struct alsa_elem *elem, void *private) {
 // Get the stereo-aware talkback label for a mixer output source
 // Returns newly allocated string that must be freed
 static char *get_talkback_stereo_aware_name(struct routing_src *src) {
+  char lbl_l[8], lbl_r[8];
+
   if (is_src_linked(src) && is_src_left_channel(src)) {
     // Linked: show "A–B" format
     return g_strdup_printf(
-      "%c\xe2\x80\x93%c", src->port_num + 'A', src->port_num + 'B'
+      "%s\xe2\x80\x93%s",
+      mix_num_to_label(src->port_num, lbl_l, sizeof(lbl_l)),
+      mix_num_to_label(src->port_num + 1, lbl_r, sizeof(lbl_r))
     );
   }
-  // Not linked: show single letter (e.g., "A")
-  return g_strdup_printf("%c", src->port_num + 'A');
+  // Not linked: show the single label (e.g., "A")
+  return g_strdup_printf(
+    "%s", mix_num_to_label(src->port_num, lbl_l, sizeof(lbl_l))
+  );
 }
 
 // Update talkback button labels for stereo linking
@@ -2079,9 +2092,11 @@ static void determine_default_stereo_links(struct alsa_card *card) {
 
         if (has_crosstalk || diag_mismatch) {
           if (debug) {
-            printf("      Mixer s×s: in %d-%d × out %c-%c\n",
-              idx_l + 1, idx_r + 1, 'A' + mix_l, 'A' + mix_r);
-            if (has_crosstalk)
+            char lbl_l[8], lbl_r[8];
+            printf("      Mixer s×s: in %d-%d × out %s-%s\n",
+              idx_l + 1, idx_r + 1,
+              mix_num_to_label(mix_l, lbl_l, sizeof(lbl_l)),
+              mix_num_to_label(mix_r, lbl_r, sizeof(lbl_r)));
               printf("        crosstalk: off-diag LR=%ld RL=%ld (min=%ld)\n",
                 off_lr_val, off_rl_val, min_val);
             if (diag_mismatch)
@@ -2148,9 +2163,10 @@ static void determine_default_stereo_links(struct alsa_card *card) {
 
         if (val_l != val_r) {
           if (debug) {
-            printf("      Mixer s×m: in %d-%d × out %c\n",
-              idx_l + 1, idx_r + 1, 'A' + mix);
-            printf("        gain mismatch: L=%ld R=%ld\n", val_l, val_r);
+            char lbl[8];
+            printf("      Mixer s×m: in %d-%d × out %s\n",
+              idx_l + 1, idx_r + 1,
+              mix_num_to_label(mix, lbl, sizeof(lbl)));
           }
           if (alsa_get_elem_value(in_l->link_elem)) {
             if (debug)
@@ -2208,9 +2224,11 @@ static void determine_default_stereo_links(struct alsa_card *card) {
 
         if (val_l != val_r) {
           if (debug) {
-            printf("      Mixer m×s: in %d × out %c-%c\n",
-              idx + 1, 'A' + mix_l, 'A' + mix_r);
-            printf("        gain mismatch: L=%ld R=%ld\n", val_l, val_r);
+            char lbl_l[8], lbl_r[8];
+            printf("      Mixer m×s: in %d × out %s-%s\n",
+              idx + 1,
+              mix_num_to_label(mix_l, lbl_l, sizeof(lbl_l)),
+              mix_num_to_label(mix_r, lbl_r, sizeof(lbl_r)));
           }
           if (alsa_get_elem_value(out_l->link_elem)) {
             if (debug)

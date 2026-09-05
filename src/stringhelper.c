@@ -69,3 +69,46 @@ int string_ends_with(const char *s, const char *suffix) {
     return 0;
   return strcmp(s + s_len - suffix_len, suffix) == 0;
 }
+
+// see stringhelper.h
+char *mix_num_to_label(int mix_num, char *buf, int len) {
+  char tmp[8];
+  int n = 0;
+
+  if (mix_num < 0)
+    mix_num = 0;
+
+  // bijective base 26, least-significant letter first
+  do {
+    tmp[n++] = 'A' + mix_num % 26;
+    mix_num = mix_num / 26 - 1;
+  } while (mix_num >= 0 && n < (int)sizeof(tmp));
+
+  int i = 0;
+  while (n > 0 && i < len - 1)
+    buf[i++] = tmp[--n];
+  buf[i] = '\0';
+
+  return buf;
+}
+
+// see stringhelper.h
+int mix_label_to_num(const char *s, const char **end) {
+  if (!s || *s < 'A' || *s > 'Z') {
+    if (end)
+      *end = s;
+    return -1;
+  }
+
+  int num = 0;
+
+  while (*s >= 'A' && *s <= 'Z') {
+    num = num * 26 + (*s - 'A' + 1);
+    s++;
+  }
+
+  if (end)
+    *end = s;
+
+  return num - 1;
+}

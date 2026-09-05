@@ -413,10 +413,14 @@ static GtkOrientation get_socket_orientation(int port_category) {
 // Returns newly allocated string that must be freed
 static char *get_src_stereo_aware_name(struct routing_src *src) {
   if (is_src_linked(src) && is_src_left_channel(src)) {
-    if (src->port_category == PC_MIX)
+    if (src->port_category == PC_MIX) {
+      char lbl_l[8], lbl_r[8];
       return g_strdup_printf(
-        "%c\xe2\x80\x93%c", src->port_num + 'A', src->port_num + 'B'
+        "%s\xe2\x80\x93%s",
+        mix_num_to_label(src->port_num, lbl_l, sizeof(lbl_l)),
+        mix_num_to_label(src->port_num + 1, lbl_r, sizeof(lbl_r))
       );
+    }
     if (src->port_category == PC_DSP)
       return g_strdup_printf(
         "%d\xe2\x80\x93%d", src->lr_num, src->lr_num + 1
@@ -1674,6 +1678,12 @@ static GtkWidget *make_talkback_mix_widget(
   struct routing_src *r_src
 ) {
   // Use lr_num to construct the element name (lr_num 1='A', 2='B', etc.)
+  //
+  // Deliberately still 'A' + i rather than mix_num_to_label(): this name has
+  // to match what fcp-server generates, and there the template comes from the
+  // ALSA map as a %c ("Talkback Mix %c Playback Switch"). Only Scarlett
+  // devices have talkback and none has more than 26 mixes, so the alphabet
+  // holds. Change both sides together if that ever stops being true.
   char talkback_elem_name[80];
   snprintf(
     talkback_elem_name, 80,

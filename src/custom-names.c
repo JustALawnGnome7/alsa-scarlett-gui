@@ -9,6 +9,7 @@
 #include "optional-state.h"
 #include "alsa.h"
 #include "stereo-link.h"
+#include "stringhelper.h"
 #include "widget-boolean.h"
 #include "window-mixer.h"
 #include "window-routing.h"
@@ -211,14 +212,20 @@ static void src_custom_name_display_changed(
   if (src->talkback_widget && src->port_category == PC_MIX) {
     char *formatted_name;
 
+    char lbl_l[8], lbl_r[8];
+
     if (is_src_linked(src) && is_src_left_channel(src)) {
       // linked: show "A–B" format
       formatted_name = g_strdup_printf(
-        "%c\xe2\x80\x93%c", src->port_num + 'A', src->port_num + 'B'
+        "%s\xe2\x80\x93%s",
+        mix_num_to_label(src->port_num, lbl_l, sizeof(lbl_l)),
+        mix_num_to_label(src->port_num + 1, lbl_r, sizeof(lbl_r))
       );
     } else {
-      // not linked: show single letter
-      formatted_name = g_strdup_printf("%c", src->port_num + 'A');
+      // not linked: show the single label
+      formatted_name = g_strdup_printf(
+        "%s", mix_num_to_label(src->port_num, lbl_l, sizeof(lbl_l))
+      );
     }
 
     boolean_widget_update_labels(
@@ -245,8 +252,12 @@ char *get_src_generic_name(struct routing_src *src) {
     case PC_PCM:
       return g_strdup_printf("PCM %d", src->lr_num);
 
-    case PC_MIX:
-      return g_strdup_printf("Mix %c", src->port_num + 'A');
+    case PC_MIX: {
+      char lbl[8];
+      return g_strdup_printf(
+        "Mix %s", mix_num_to_label(src->port_num, lbl, sizeof(lbl))
+      );
+    }
 
     case PC_DSP:
       return g_strdup_printf("DSP %d", src->lr_num);
@@ -265,8 +276,12 @@ char *get_src_default_name_formatted(struct routing_src *src, int abbreviated) {
   // for abbreviated mode, always use short form for Mix/DSP
   if (abbreviated) {
     switch (src->port_category) {
-      case PC_MIX:
-        return g_strdup_printf("%c", src->port_num + 'A');
+      case PC_MIX: {
+        char lbl[8];
+        return g_strdup_printf(
+          "%s", mix_num_to_label(src->port_num, lbl, sizeof(lbl))
+        );
+      }
       case PC_DSP:
         return g_strdup_printf("%d", src->lr_num);
       default:

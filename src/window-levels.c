@@ -282,7 +282,14 @@ static GtkWidget *create_levels_controls_with_labels(
       label[label_idx - 1] = '\0';
 
     } else if (label[label_idx] >= 'A' && label[label_idx] <= 'Z') {
-      label_num = label[label_idx] - 'A' + 1;
+
+      // a mix label, which past Z is more than one letter ("AA", "AB", ...),
+      // so walk back over the whole run rather than taking the last character
+      while (label_idx > 1 &&
+             label[label_idx - 1] >= 'A' && label[label_idx - 1] <= 'Z')
+        label_idx--;
+
+      label_num = mix_label_to_num(&label[label_idx], NULL) + 1;
 
       if (label[label_idx - 1] != ' ') {
         fprintf(stderr, "Label %s is not in the expected format\n", label);

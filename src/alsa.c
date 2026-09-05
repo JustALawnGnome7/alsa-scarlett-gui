@@ -856,7 +856,7 @@ static void get_routing_srcs(struct alsa_card *card) {
     r->name = name;
     r->lr_num =
       r->port_category == PC_MIX
-        ? name[4] - 'A' + 1
+        ? mix_label_to_num(name + 4, NULL) + 1
         : get_num_from_string(name);
 
     r->port_num = card->routing_in_count[r->port_category]++;
@@ -1283,7 +1283,7 @@ void alsa_init_mixer_gains_cache(struct alsa_card *card) {
     if (!mix_str || !mix_str[4])
       continue;
 
-    int mix_num = mix_str[4] - 'A';
+    int mix_num = mix_label_to_num(mix_str + 4, NULL);
     int input_num = get_num_from_string(elem->name) - 1;
 
     if (mix_num < 0 || mix_num >= MAX_MIX_OUT)

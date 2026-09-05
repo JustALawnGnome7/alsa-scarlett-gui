@@ -1111,10 +1111,11 @@ GtkWidget *create_mixer_controls(struct alsa_card *card) {
   // create the Mix X labels on the left and right of the grid
   for (int i = 0; i < card->routing_in_count[PC_MIX]; i++) {
     struct routing_src *r_src = get_mixer_r_src(card, i);
+    char mix_label[8];
 
     char *name = r_src ?
       get_mixer_output_label_for_mixer_window(r_src) :
-      g_strdup_printf("Mix %c", i + 'A');
+      g_strdup_printf("Mix %s", mix_num_to_label(i, mix_label, sizeof(mix_label)));
 
     GtkWidget *l_left = gtk_label_new(name);
     gtk_label_set_ellipsize(GTK_LABEL(l_left), PANGO_ELLIPSIZE_END);
