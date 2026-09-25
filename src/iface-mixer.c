@@ -1232,6 +1232,22 @@ static void create_output_controls(
     get_elem_by_name(elems, "Mute Playback Switch") ||
     get_elem_by_name(elems, "Master Playback Switch");
 
+  // Per-output dim (Focusrite Red) takes row 4, level with the global Dim
+  // button, and pushes the SW/HW row down to 5. Other devices keep SW/HW
+  // on row 4.
+  int has_output_dim = 0;
+  for (int i = 0; i < elems->len; i++) {
+    struct alsa_elem *elem = g_ptr_array_index(elems, i);
+
+    if (elem->card && elem->lr_num &&
+        strncmp(elem->name, "Line", 4) == 0 &&
+        strstr(elem->name, "Dim Playback Switch")) {
+      has_output_dim = 1;
+      break;
+    }
+  }
+  int sw_hw_row = has_output_dim ? 5 : 4;
+
   for (int i = 0; i < output_count; i++) {
     char s[20];
     snprintf(s, 20, "%d", i + 1);
@@ -1277,6 +1293,17 @@ static void create_output_controls(
         og->r_snk = r_snk;
         card->output_gain_widgets = g_list_append(card->output_gain_widgets, og);
 
+      } else if (strstr(elem->name, "Dim Playback Switch")) {
+        // Per-output dim (Focusrite Red). Its own row, below mute: sharing
+        // the mute cell stacked it on top of the mute button.
+        w = make_boolean_alsa_elem(
+          elem, "*audio-volume-medium", "*audio-volume-low"
+        );
+        gtk_widget_add_css_class(w, "dim");
+        gtk_widget_set_tooltip_text(w, "Dim (lower volume) of this output");
+        gtk_grid_attach(
+          GTK_GRID(output_grid), w, elem->lr_num - 1 + line_1_col, 4, 1, 1
+        );
       } else if (strstr(elem->name, "Playback Switch")) {
         w = make_boolean_alsa_elem(
           elem, "*audio-volume-high", "*audio-volume-muted"
@@ -1302,7 +1329,7 @@ static void create_output_controls(
           "volume for this analogue output."
         );
         gtk_grid_attach(
-          GTK_GRID(output_grid), w, elem->lr_num - 1 + line_1_col, 4, 1, 1
+          GTK_GRID(output_grid), w, elem->lr_num - 1 + line_1_col, sw_hw_row, 1, 1
         );
       }
 
