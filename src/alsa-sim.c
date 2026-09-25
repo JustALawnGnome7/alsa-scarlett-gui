@@ -236,6 +236,13 @@ static void alsa_parse_comment_node(
       if (err < 0)
         fatal_alsa_error("snd_config_get_integer error", err);
       elem->min_cdB = dbmin;
+
+      // alsactl doesn't record the TLV type. A mute minimum is what
+      // a DB_LINEAR TLV (the FCP mixer gains, linear amplitude)
+      // reports; read as dB-linear it puts every value tens of
+      // thousands of dB below zero
+      if (dbmin == SND_CTL_TLV_DB_GAIN_MUTE)
+        elem->dB_type = SND_CTL_TLVT_DB_LINEAR;
     } else if (strcmp(key, "dbmax") == 0) {
       if (type != SND_CONFIG_TYPE_INTEGER) {
         printf("dbmax type not integer\n");
