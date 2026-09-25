@@ -118,7 +118,9 @@ static int compute_snk_level_index(
   return index;
 }
 
-// compute the level meter index for a routing source
+// compute the level meter index for a routing source that has its
+// own meter; sources without one borrow a sink's level at read time
+// (see get_routing_src_level_db())
 static int compute_src_level_index(
   struct alsa_card   *card,
   struct routing_src *r_src
@@ -127,25 +129,39 @@ static int compute_src_level_index(
       r_src->port_category == PC_OFF)
     return -1;
 
-  // if meter labels are available, search for matching "Source" label
-  if (card->level_meter_elem->meter_labels) {
-    for (int i = 0; i < card->routing_levels_count; i++) {
-      const char *label = card->level_meter_elem->meter_labels[i];
-      if (!label)
-        continue;
-
-      if (strncmp(label, "Source ", 7) != 0)
-        continue;
-
-      if (strcmp(label + 7, r_src->name) == 0)
-        return i;
-    }
-
+  // only labelled meters can name a source; without labels, level
+  // meters are at sinks only
+  if (!card->level_meter_elem->meter_labels)
     return -1;
+
+  for (int i = 0; i < card->routing_levels_count; i++) {
+    const char *label = card->level_meter_elem->meter_labels[i];
+    if (!label)
+      continue;
+
+    if (strncmp(label, "Source ", 7) != 0)
+      continue;
+
+    if (strcmp(label + 7, r_src->name) == 0)
+      return i;
   }
 
-  // without labels, level meters are at sinks only; find a sink
-  // connected to this source and return its level index
+  return -1;
+}
+
+// level meter index of a metered sink currently routed from this
+// source, or -1; routing copies the signal unchanged, so the sink's
+// meter reads the source's level. Looked up on every read rather than
+// cached, so it follows routing changes. Needed both for unlabelled
+// meters and for labelled ones that meter sinks only (Clarett
+// Thunderbolt).
+static int find_routed_snk_level_index(
+  struct alsa_card   *card,
+  struct routing_src *r_src
+) {
+  if (!card->routing_levels || r_src->port_category == PC_OFF)
+    return -1;
+
   for (int i = 0; i < card->routing_snks->len; i++) {
     struct routing_snk *r_snk = &g_array_index(
       card->routing_snks, struct routing_snk, i
@@ -164,7 +180,6 @@ static int compute_src_level_index(
 // compute and cache level meter indices for all routing srcs/snks
 void init_routing_level_indices(struct alsa_card *card) {
 
-  // sinks first (sources may depend on them in the no-labels path)
   for (int i = 0; i < card->routing_snks->len; i++) {
     struct routing_snk *r_snk = &g_array_index(
       card->routing_snks, struct routing_snk, i
@@ -190,8 +205,13 @@ double get_routing_src_level_db(
   struct alsa_card   *card,
   struct routing_src *r_src
 ) {
-  if (r_src->level_index < 0)
+  int index = r_src->level_index;
+
+  if (index < 0)
+    index = find_routed_snk_level_index(card, r_src);
+
+  if (index < 0)
     return -80.0;
 
-  return card->routing_levels[r_src->level_index];
+  return card->routing_levels[index];
 }
