@@ -180,6 +180,27 @@ static const char *clarett_4pre_analogue_snk[] = {
   NULL
 };
 
+// Red 8Line analogue inputs (sources): preamps on 1-2 only
+static const char *red_8line_analogue_src[] = {
+  "Mic/Line/Inst 1", "Mic/Line/Inst 2",
+  "Line 3", "Line 4",
+  "Line 5", "Line 6",
+  "Line 7", "Line 8",
+  NULL
+};
+
+// Red 8Line analogue outputs (sinks)
+static const char *red_8line_analogue_snk[] = {
+  "Monitor 1", "Monitor 2",
+  "Headphones 1 (L)", "Headphones 1 (R)",
+  "Headphones 2 (L)", "Headphones 2 (R)",
+  "Line 1", "Line 2",
+  "Line 3", "Line 4",
+  "Line 5", "Line 6",
+  "Line 7", "Line 8",
+  NULL
+};
+
 // Vocaster One analogue inputs (sources)
 static const char *vocaster_one_analogue_src[] = {
   "Host", "Aux",
@@ -433,6 +454,12 @@ static const char *clarett_8pre_analogue_snk_pairs[] = {
   "Line 9–10/Headphones 2", NULL
 };
 
+// Red 8Line analogue output pairs
+static const char *red_8line_analogue_snk_pairs[] = {
+  "Monitor 1–2", "Headphones 1", "Headphones 2",
+  "Line 1–2", "Line 3–4", "Line 5–6", "Line 7–8", NULL
+};
+
 // Vocaster One analogue output pairs
 static const char *vocaster_one_analogue_snk_pairs[] = {
   "Spkr/Headphones", "Aux", NULL
@@ -681,6 +708,10 @@ static const struct device_pair_names device_pair_names[] = {
   { 0, PC_HW, HW_TYPE_ANALOGUE, 0, analogue_src_pairs_inst_12_mic_345678, "Clarett 8PreX" },
   { 0, PC_HW, HW_TYPE_ANALOGUE, 1, clarett_8pre_analogue_snk_pairs, "Clarett 8PreX" },
 
+  // Red 8Line (snd-clarett, Thunderbolt)
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 0, analogue_src_pairs_inst_12_line_345678, "Red 8Line" },
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 1, red_8line_analogue_snk_pairs, "Red 8Line" },
+
   { 0 }
 };
 
@@ -807,6 +838,11 @@ static const struct device_port_names device_port_names[] = {
   { 0, PC_HW, HW_TYPE_ANALOGUE, 1, clarett_8pre_analogue_snk, "Clarett 8Pre" },
   { 0, PC_HW, HW_TYPE_ANALOGUE, 0, clarett_8pre_analogue_src, "Clarett 8PreX" },
   { 0, PC_HW, HW_TYPE_ANALOGUE, 1, clarett_8pre_analogue_snk, "Clarett 8PreX" },
+
+  // Red 8Line (snd-clarett, Thunderbolt). Needs fcp-server's red-8line map
+  // to list the analogue ports in channel order, which it does.
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 0, red_8line_analogue_src, "Red 8Line" },
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 1, red_8line_analogue_snk, "Red 8Line" },
 
   { 0 }
 };
