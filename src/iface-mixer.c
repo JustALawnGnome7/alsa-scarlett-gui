@@ -1417,10 +1417,10 @@ static void create_global_controls(
   }
 
   add_clock_source_control(card, column[0]);
-  add_meter_source_control(card, column[0]);
   add_sync_status_control(card, column[1]);
   add_power_status_control(card, column[1]);
   add_sample_rate_control(card, column[2]);
+  add_meter_source_control(card, column[2]);
   add_speaker_switching_controls_enum(card, column[0]);
   add_speaker_switching_controls_switches(card, column[0]);
   add_speaker_switching_controls_gen4(card, column[0]);
