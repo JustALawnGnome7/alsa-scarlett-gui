@@ -51,7 +51,8 @@ const char *port_category_short_names[PC_COUNT] = {
 const char *hw_type_names[HW_TYPE_COUNT] = {
   "Analogue",
   "S/PDIF",
-  "ADAT"
+  "ADAT",
+  "Dante"
 };
 
 // global array of cards
@@ -851,6 +852,8 @@ static void get_routing_srcs(struct alsa_card *card) {
         r->hw_type = HW_TYPE_SPDIF;
       else if (strncmp(name, "ADAT", 4) == 0)
         r->hw_type = HW_TYPE_ADAT;
+      else if (strncmp(name, "Dante", 5) == 0)
+        r->hw_type = HW_TYPE_DANTE;
     }
 
     r->name = name;
@@ -904,7 +907,8 @@ static int is_elem_routing_snk(struct alsa_elem *elem) {
       !strstr(elem->name, "Source") && (
        strncmp(elem->name, "Analogue ", 9) == 0 ||
        strncmp(elem->name, "S/PDIF ", 7) == 0 ||
-       strncmp(elem->name, "ADAT ", 5) == 0
+       strncmp(elem->name, "ADAT ", 5) == 0 ||
+       strncmp(elem->name, "Dante ", 6) == 0
      ))
     return 1;
 
@@ -955,6 +959,8 @@ static void get_routing_snks(struct alsa_card *card) {
         elem->hw_type = HW_TYPE_SPDIF;
       else if (strstr(elem->name, "ADAT"))
         elem->hw_type = HW_TYPE_ADAT;
+      else if (strncmp(elem->name, "Dante", 5) == 0)
+        elem->hw_type = HW_TYPE_DANTE;
     } else {
       printf("unknown mixer routing elem %s\n", elem->name);
       continue;

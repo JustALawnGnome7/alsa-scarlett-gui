@@ -1882,7 +1882,9 @@ static void add_mixer_tab(GtkWidget *notebook, struct alsa_card *card) {
     tab_data->columns = g_array_new(FALSE, FALSE, sizeof(struct column_checkbox_data *));
 
     // Labels for hardware input types
-    const char *hw_labels[] = {"Analogue Inputs", "S/PDIF Inputs", "ADAT Inputs"};
+    const char *hw_labels[HW_TYPE_COUNT] = {
+      "Analogue Inputs", "S/PDIF Inputs", "ADAT Inputs", "Dante Inputs"
+    };
 
     // PCM Outputs column (playback from computer)
     if (has_mixer_inputs_for_src_type(card, PC_PCM, -1)) {
@@ -1892,7 +1894,7 @@ static void add_mixer_tab(GtkWidget *notebook, struct alsa_card *card) {
       g_array_append_val(tab_data->columns, col);
     }
 
-    // Hardware input columns (Analogue, S/PDIF, ADAT)
+    // Hardware input columns (Analogue, S/PDIF, ADAT, Dante)
     for (int hw_type = 0; hw_type < HW_TYPE_COUNT; hw_type++) {
       if (has_mixer_inputs_for_src_type(card, PC_HW, hw_type)) {
         struct column_checkbox_data *col = create_mixer_input_column(
@@ -2060,7 +2062,7 @@ void add_io_tab(GtkWidget *top_notebook, struct alsa_card *card) {
   // Create the sub-notebook for I/O Configuration
   GtkWidget *notebook = gtk_notebook_new();
 
-  // Add tabs for each hardware type (Analogue, S/PDIF, ADAT)
+  // Add tabs for each hardware type (Analogue, S/PDIF, ADAT, Dante)
   for (int hw_type = 0; hw_type < HW_TYPE_COUNT; hw_type++) {
     add_hw_tab(notebook, card, hw_type);
   }

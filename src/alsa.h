@@ -39,6 +39,7 @@ enum {
   HW_TYPE_ANALOGUE,
   HW_TYPE_SPDIF,
   HW_TYPE_ADAT,
+  HW_TYPE_DANTE,   // network audio (Focusrite Red); not governed by Digital I/O mode
   HW_TYPE_COUNT
 };
 
