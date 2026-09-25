@@ -1739,9 +1739,10 @@ static void card_init(struct alsa_card *card) {
 // USB devices are named after their USB product string ("Scarlett 4th
 // Gen 16i16", "Clarett+ 2Pre", "Vocaster Two"), so a name prefix is
 // enough for them. Non-USB Focusrite interfaces are named by their own
-// driver and need not follow that convention: the Thunderbolt Clarett
-// (snd-clarett) names its cards "Focusrite Clarett 2Pre" and so on, so
-// match the ALSA driver name as well.
+// driver and need not follow that convention: snd-clarett names its
+// cards by model ("Clarett 2Pre", but also "Red 8Line"), so match the
+// ALSA driver name as well. device-port-names.c keys the Thunderbolt
+// Claretts' port names on those card names.
 static int is_supported_card(snd_ctl_card_info_t *info) {
   const char *name = snd_ctl_card_info_get_name(info);
   const char *driver = snd_ctl_card_info_get_driver(info);
@@ -1751,7 +1752,8 @@ static int is_supported_card(snd_ctl_card_info_t *info) {
       strncmp(name, "Vocaster", 8) == 0)
     return 1;
 
-  // Thunderbolt Clarett (2Pre/4Pre/8Pre/8PreX), driver name "Clarett"
+  // snd-clarett (Clarett 2Pre/4Pre/8Pre/8PreX, Red 8Line): driver
+  // name "Clarett"
   if (strcmp(driver, "Clarett") == 0)
     return 1;
 

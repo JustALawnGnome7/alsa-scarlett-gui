@@ -3,10 +3,12 @@
 
 #pragma once
 
+struct alsa_card;
+
 // Get device-specific default port name
 // Returns NULL if no device-specific name defined for this port
 const char *get_device_port_name(
-  int pid,           // USB product ID
+  struct alsa_card *card, // matched by USB PID, or by card name if not USB
   int port_category, // PC_HW, PC_PCM, PC_MIX
   int hw_type,       // for PC_HW: HW_TYPE_ANALOGUE, HW_TYPE_SPDIF, HW_TYPE_ADAT
   int is_snk,        // 0 = source, 1 = sink
@@ -16,7 +18,7 @@ const char *get_device_port_name(
 // Get device-specific default stereo pair name
 // Returns NULL if no device-specific name defined for this pair
 const char *get_device_pair_name(
-  int pid,           // USB product ID
+  struct alsa_card *card, // matched by USB PID, or by card name if not USB
   int port_category, // PC_HW, PC_PCM, PC_MIX
   int hw_type,       // for PC_HW: HW_TYPE_ANALOGUE, HW_TYPE_SPDIF, HW_TYPE_ADAT
   int is_snk,        // 0 = source, 1 = sink

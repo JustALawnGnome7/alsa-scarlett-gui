@@ -116,7 +116,7 @@ char *get_src_default_pair_name(struct routing_src *src) {
   // Check for device-specific pair name first
   int pair_num = (src->lr_num - 1) / 2;
   const char *device_name = get_device_pair_name(
-    src->card->pid, src->port_category, src->hw_type, 0, pair_num
+    src->card, src->port_category, src->hw_type, 0, pair_num
   );
   if (device_name)
     return g_strdup(device_name);
@@ -136,7 +136,7 @@ char *get_snk_default_pair_name(struct routing_snk *snk) {
   // Check for device-specific pair name first
   int pair_num = (elem->lr_num - 1) / 2;
   const char *device_name = get_device_pair_name(
-    elem->card->pid, elem->port_category, elem->hw_type, 1, pair_num
+    elem->card, elem->port_category, elem->hw_type, 1, pair_num
   );
   if (device_name)
     return g_strdup(device_name);

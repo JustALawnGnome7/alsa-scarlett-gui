@@ -553,7 +553,7 @@ static void fill_src_pair_info(
 
   int pair_num = (src_left->lr_num - 1) / 2;
   const char *device_pair = get_device_pair_name(
-    src_left->card->pid, src_left->port_category,
+    src_left->card, src_left->port_category,
     src_left->hw_type, 0, pair_num
   );
   info->pair_placeholder = device_pair ? g_strdup(device_pair) : NULL;
@@ -564,7 +564,7 @@ static void fill_src_pair_info(
     info->ch[c].custom_name_elem = srcs[c]->custom_name_elem;
     info->ch[c].generic_name = get_src_generic_name(srcs[c]);
     info->ch[c].placeholder = get_device_port_name(
-      srcs[c]->card->pid, srcs[c]->port_category,
+      srcs[c]->card, srcs[c]->port_category,
       srcs[c]->hw_type, 0, srcs[c]->port_num
     );
   }
@@ -584,7 +584,7 @@ static void fill_snk_pair_info(
   struct alsa_elem *left_elem = snk_left->elem;
   int pair_num = (left_elem->lr_num - 1) / 2;
   const char *device_pair = get_device_pair_name(
-    left_elem->card->pid, left_elem->port_category,
+    left_elem->card, left_elem->port_category,
     left_elem->hw_type, 1, pair_num
   );
   info->pair_placeholder = device_pair ? g_strdup(device_pair) : NULL;
@@ -596,7 +596,7 @@ static void fill_snk_pair_info(
     info->ch[c].custom_name_elem = snks[c]->custom_name_elem;
     info->ch[c].generic_name = get_snk_generic_name(snks[c]);
     info->ch[c].placeholder = get_device_port_name(
-      elem->card->pid, elem->port_category,
+      elem->card, elem->port_category,
       elem->hw_type, 1, elem->port_num
     );
   }
@@ -1292,7 +1292,7 @@ static void add_src_names_for_category(
       // No partner - add as single channel (column 0 is empty for consistency)
       char *generic_name = get_src_generic_name(src);
       const char *device_default = get_device_port_name(
-        src->card->pid, src->port_category, src->hw_type, 0, src->port_num
+        src->card, src->port_category, src->hw_type, 0, src->port_num
       );
 
       // Enable checkbox at column 1
@@ -1369,7 +1369,7 @@ static void add_snk_names_for_category(
       // No partner - add as single channel (column 0 is empty for consistency)
       char *generic_name = get_snk_generic_name(snk);
       const char *device_default = get_device_port_name(
-        snk->elem->card->pid, snk->elem->port_category,
+        snk->elem->card, snk->elem->port_category,
         snk->elem->hw_type, 1, snk->elem->port_num
       );
 

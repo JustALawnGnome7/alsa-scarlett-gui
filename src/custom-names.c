@@ -291,7 +291,7 @@ char *get_src_default_name_formatted(struct routing_src *src, int abbreviated) {
 
   // check device-specific default name
   const char *device_default = get_device_port_name(
-    src->card->pid,
+    src->card,
     src->port_category,
     src->hw_type,
     0,  // is_snk = false for sources
@@ -365,7 +365,7 @@ char *get_snk_default_name_formatted(struct routing_snk *snk, int abbreviated) {
 
   // check device-specific default name
   const char *device_default = get_device_port_name(
-    elem->card->pid,
+    elem->card,
     elem->port_category,
     elem->hw_type,
     1,  // is_snk = true for sinks

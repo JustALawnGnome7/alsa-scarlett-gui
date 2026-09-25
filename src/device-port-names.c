@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <stddef.h>
+#include <string.h>
 
 #include "alsa.h"
 #include "device-port-names.h"
@@ -375,6 +376,7 @@ struct device_port_names {
   int          hw_type;
   int          is_snk;
   const char **names;
+  const char  *card_name; // non-USB cards (pid 0): ALSA card name
 };
 
 // Stereo pair names (indexed by pair number: 0 = ports 1-2, 1 = ports 3-4, etc.)
@@ -555,6 +557,7 @@ struct device_pair_names {
   int          hw_type;
   int          is_snk;
   const char **names;
+  const char  *card_name; // non-USB cards (pid 0): ALSA card name
 };
 
 static const struct device_pair_names device_pair_names[] = {
@@ -666,6 +669,17 @@ static const struct device_pair_names device_pair_names[] = {
   // Scarlett 4th Gen 18i20
   { PID_SCARLETT_GEN4_18I20, PC_HW, HW_TYPE_ANALOGUE, 0, analogue_src_pairs_inst_12_mic_345678 },
   { PID_SCARLETT_GEN4_18I20, PC_HW, HW_TYPE_ANALOGUE, 1, scarlett_gen4_18i20_analogue_snk_pairs },
+
+  // Thunderbolt Clarett (snd-clarett): not USB, so keyed by card name.
+  // Same analogue I/O as the USB models of the same name.
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 0, analogue_src_pairs_inst_12, "Clarett 2Pre" },
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 1, clarett_2pre_analogue_snk_pairs, "Clarett 2Pre" },
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 0, analogue_src_pairs_inst_12_mic_34_line_5678, "Clarett 4Pre" },
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 1, clarett_4pre_analogue_snk_pairs, "Clarett 4Pre" },
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 0, analogue_src_pairs_inst_12_mic_345678, "Clarett 8Pre" },
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 1, clarett_8pre_analogue_snk_pairs, "Clarett 8Pre" },
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 0, analogue_src_pairs_inst_12_mic_345678, "Clarett 8PreX" },
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 1, clarett_8pre_analogue_snk_pairs, "Clarett 8PreX" },
 
   { 0 }
 };
@@ -783,11 +797,36 @@ static const struct device_port_names device_port_names[] = {
   { PID_SCARLETT_GEN4_18I20, PC_HW,  HW_TYPE_ANALOGUE, 0, scarlett_gen4_18i20_analogue_src },
   { PID_SCARLETT_GEN4_18I20, PC_HW,  HW_TYPE_ANALOGUE, 1, scarlett_gen4_18i20_analogue_snk },
 
+  // Thunderbolt Clarett (snd-clarett): not USB, so keyed by card name.
+  // Same analogue I/O as the USB models of the same name.
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 0, clarett_2pre_analogue_src, "Clarett 2Pre" },
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 1, clarett_2pre_analogue_snk, "Clarett 2Pre" },
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 0, clarett_4pre_analogue_src, "Clarett 4Pre" },
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 1, clarett_4pre_analogue_snk, "Clarett 4Pre" },
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 0, clarett_8pre_analogue_src, "Clarett 8Pre" },
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 1, clarett_8pre_analogue_snk, "Clarett 8Pre" },
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 0, clarett_8pre_analogue_src, "Clarett 8PreX" },
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 1, clarett_8pre_analogue_snk, "Clarett 8PreX" },
+
   { 0 }
 };
 
+// does a table entry apply to this card? USB cards match by PID;
+// others (the Thunderbolt Clarett, or a simulated card named after
+// one) have PID 0 and match by ALSA card name
+static int entry_matches_card(
+  int               pid,
+  const char       *card_name,
+  struct alsa_card *card
+) {
+  if (card_name)
+    return !card->pid && card->name && strcmp(card->name, card_name) == 0;
+
+  return card->pid && pid == card->pid;
+}
+
 const char *get_device_port_name(
-  int pid,
+  struct alsa_card *card,
   int port_category,
   int hw_type,
   int is_snk,
@@ -796,7 +835,7 @@ const char *get_device_port_name(
   for (int i = 0; device_port_names[i].names; i++) {
     const struct device_port_names *entry = &device_port_names[i];
 
-    if (entry->pid != pid)
+    if (!entry_matches_card(entry->pid, entry->card_name, card))
       continue;
     if (entry->port_category != port_category)
       continue;
@@ -819,7 +858,7 @@ const char *get_device_port_name(
 }
 
 const char *get_device_pair_name(
-  int pid,
+  struct alsa_card *card,
   int port_category,
   int hw_type,
   int is_snk,
@@ -828,7 +867,7 @@ const char *get_device_pair_name(
   for (int i = 0; device_pair_names[i].names; i++) {
     const struct device_pair_names *entry = &device_pair_names[i];
 
-    if (entry->pid != pid)
+    if (!entry_matches_card(entry->pid, entry->card_name, card))
       continue;
     if (entry->port_category != port_category)
       continue;
