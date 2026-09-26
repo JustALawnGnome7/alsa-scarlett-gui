@@ -1124,6 +1124,44 @@ static void create_input_pad_control(
   gtk_grid_attach(GTK_GRID(grid), w, column_num, current_row, 1, 1);
 }
 
+// High-pass filter and phase (polarity) invert: per-preamp switches on the
+// Focusrite Red. No other device names a control this way, so the rows only
+// ever appear there.
+static void create_input_hpf_control(
+  struct alsa_elem *elem,
+  GtkWidget        *grid,
+  int               current_row,
+  int               column_num
+) {
+  GtkWidget *w = make_boolean_alsa_elem(elem, "HPF", NULL);
+  gtk_widget_add_css_class(w, "hpf");
+  gtk_widget_set_hexpand(w, TRUE);
+  gtk_widget_set_tooltip_text(
+    w,
+    "Enabling HPF engages the preamp's high-pass filter, removing "
+    "low-frequency rumble and handling noise."
+  );
+
+  gtk_grid_attach(GTK_GRID(grid), w, column_num, current_row, 1, 1);
+}
+
+static void create_input_phase_control(
+  struct alsa_elem *elem,
+  GtkWidget        *grid,
+  int               current_row,
+  int               column_num
+) {
+  GtkWidget *w = make_boolean_alsa_elem(elem, "Ø", NULL);
+  gtk_widget_add_css_class(w, "phase");
+  gtk_widget_set_hexpand(w, TRUE);
+  gtk_widget_set_tooltip_text(
+    w,
+    "Enabling Phase inverts the polarity of the channel's signal."
+  );
+
+  gtk_grid_attach(GTK_GRID(grid), w, column_num, current_row, 1, 1);
+}
+
 static void create_input_gain_switch_control(
   struct alsa_elem *elem,
   GtkWidget        *grid,
@@ -1329,6 +1367,14 @@ static void create_input_controls(
   create_input_controls_by_type(
     elems, input_grid, &current_row,
     "Air Capture Enum", create_input_air_enum_control
+  );
+  create_input_controls_by_type(
+    elems, input_grid, &current_row,
+    "High Pass Filter Capture Switch", create_input_hpf_control
+  );
+  create_input_controls_by_type(
+    elems, input_grid, &current_row,
+    "Phase Invert Capture Switch", create_input_phase_control
   );
   create_input_controls_by_type(
     elems, input_grid, &current_row,
