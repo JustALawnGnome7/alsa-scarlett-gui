@@ -591,13 +591,16 @@ static GtkWidget *create_monitor_group_label(
   return label;
 }
 
-// Output column headers. By default each analogue output column is headed
-// by its number. When the device names its outputs and every name splits
-// cleanly into a group and a short label -- "Monitor 1", "Headphones 1 (L)",
-// "Line 3" -- the header becomes two rows: the group spanning its columns
-// (row -1), and the short label under it (row 0). Names come from the
-// routing sinks' display names, so a rename in the Routing window carries
-// through; any name that does not split falls back to plain numbers.
+// Output column headers. Each analogue output column is headed by its
+// number, except on a Focusrite Red: there the outputs fall into knob groups
+// that share a level (Monitor 1-2, each headphone pair), so when every name
+// splits cleanly into a group and a short label -- "Monitor 1",
+// "Headphones 1 (L)", "Line 3" -- the header becomes two rows: the group
+// spanning its columns (row -1), and the short label under it (row 0). Names
+// come from the routing sinks' display names, so a rename in the Routing
+// window carries through; any name that does not split falls back to plain
+// numbers. Other devices keep the numbers: an output there has one role
+// per column even where it doubles as a headphone feed.
 struct output_header {
   struct alsa_card *card;
   GtkWidget        *grid;
@@ -656,9 +659,8 @@ static void output_header_build(struct output_header *h) {
 
   char **groups = g_new0(char *, h->count);
   char **labels = g_new0(char *, h->count);
-  int named = !!get_device_port_name(
-    h->card, PC_HW, HW_TYPE_ANALOGUE, 1, 0
-  );
+  int named = h->card->name && strncmp(h->card->name, "Red ", 4) == 0 &&
+              get_device_port_name(h->card, PC_HW, HW_TYPE_ANALOGUE, 1, 0);
 
   for (int i = 0; named && i < h->count; i++) {
     struct routing_snk *snk = get_analogue_output_snk(h->card, i + 1);
