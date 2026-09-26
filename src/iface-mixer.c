@@ -627,8 +627,10 @@ static int split_output_name(const char *name, char **group, char **label) {
   }
 
   if (!**group || strpbrk(*group, "/(")) {
-    g_free(*group);
-    g_free(*label);
+    // clear the caller's pointers too: output_header_build() frees
+    // whatever is left in its arrays when a name does not split
+    g_clear_pointer(group, g_free);
+    g_clear_pointer(label, g_free);
     return 0;
   }
   return 1;
