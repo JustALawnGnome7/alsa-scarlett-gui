@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2022-2025 Geoffrey D. Bennett <g@b4.vu>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "custom-names.h"
+#include "device-port-names.h"
 #include "glow.h"
 #include "gtkhelper.h"
 #include "iface-mixer.h"
@@ -587,6 +589,207 @@ static GtkWidget *create_monitor_group_label(
   update_monitor_group_label(NULL, data);
 
   return label;
+}
+
+// Output column headers. By default each analogue output column is headed
+// by its number. When the device names its outputs and every name splits
+// cleanly into a group and a short label -- "Monitor 1", "Headphones 1 (L)",
+// "Line 3" -- the header becomes two rows: the group spanning its columns
+// (row -1), and the short label under it (row 0). Names come from the
+// routing sinks' display names, so a rename in the Routing window carries
+// through; any name that does not split falls back to plain numbers.
+struct output_header {
+  struct alsa_card *card;
+  GtkWidget        *grid;
+  int               count;
+  int               col0;
+  GPtrArray        *widgets;
+  char            **groups;  // per-column group name, NULL when numbered
+};
+
+// Split "<group> <digits>" or "<group> (L)"/"(R)". The group must not
+// itself be compound ("Line 3/Headphones", "Line 1 (Main L)").
+static int split_output_name(const char *name, char **group, char **label) {
+  size_t len = strlen(name);
+  const char *sp;
+
+  if (len > 4 && name[len - 4] == ' ' && name[len - 3] == '(' &&
+      (name[len - 2] == 'L' || name[len - 2] == 'R') &&
+      name[len - 1] == ')') {
+    *group = g_strndup(name, len - 4);
+    *label = g_strndup(name + len - 2, 1);
+  } else if ((sp = strrchr(name, ' ')) && sp[1] &&
+             strspn(sp + 1, "0123456789") == strlen(sp + 1)) {
+    *group = g_strndup(name, sp - name);
+    *label = g_strdup(sp + 1);
+  } else {
+    return 0;
+  }
+
+  if (!**group || strpbrk(*group, "/(")) {
+    g_free(*group);
+    g_free(*label);
+    return 0;
+  }
+  return 1;
+}
+
+static void output_header_attach(
+  struct output_header *h,
+  GtkWidget            *w,
+  int                   col,
+  int                   row,
+  int                   width
+) {
+  gtk_grid_attach(GTK_GRID(h->grid), w, col, row, width, 1);
+  g_ptr_array_add(h->widgets, w);
+}
+
+static void output_header_build(struct output_header *h) {
+  for (int i = 0; i < h->widgets->len; i++)
+    gtk_grid_remove(GTK_GRID(h->grid), g_ptr_array_index(h->widgets, i));
+  g_ptr_array_set_size(h->widgets, 0);
+  g_strfreev(h->groups);
+  h->groups = NULL;
+
+  char **groups = g_new0(char *, h->count);
+  char **labels = g_new0(char *, h->count);
+  int named = !!get_device_port_name(
+    h->card, PC_HW, HW_TYPE_ANALOGUE, 1, 0
+  );
+
+  for (int i = 0; named && i < h->count; i++) {
+    struct routing_snk *snk = get_analogue_output_snk(h->card, i + 1);
+
+    if (!snk ||
+        !split_output_name(
+          get_routing_snk_display_name(snk), &groups[i], &labels[i]
+        ))
+      named = 0;
+  }
+
+  if (!named) {
+    for (int i = 0; i < h->count; i++) {
+      char s[20];
+
+      snprintf(s, 20, "%d", i + 1);
+      output_header_attach(h, gtk_label_new(s), i + h->col0, 0, 1);
+    }
+  } else {
+    for (int i = 0; i < h->count; ) {
+      int run = 1;
+
+      while (i + run < h->count && !strcmp(groups[i], groups[i + run]))
+        run++;
+      output_header_attach(
+        h, gtk_label_new(groups[i]), i + h->col0, -1, run
+      );
+      for (int j = i; j < i + run; j++)
+        output_header_attach(
+          h, gtk_label_new(labels[j]), j + h->col0, 0, 1
+        );
+      i += run;
+    }
+  }
+
+  for (int i = 0; i < h->count; i++)
+    g_free(labels[i]);
+  g_free(labels);
+
+  // keep the groups for span_group_controls(); g_strfreev wants a NULL end
+  if (named) {
+    h->groups = g_renew(char *, groups, h->count + 1);
+    h->groups[h->count] = NULL;
+  } else {
+    for (int i = 0; i < h->count; i++)
+      g_free(groups[i]);
+    g_free(groups);
+  }
+}
+
+static void output_header_name_changed(struct alsa_elem *elem, void *data) {
+  output_header_build(data);
+}
+
+static void output_header_free(void *data) {
+  struct output_header *h = data;
+
+  for (int i = 0; i < h->count; i++) {
+    struct routing_snk *snk = get_analogue_output_snk(h->card, i + 1);
+
+    if (snk && snk->custom_name_elem)
+      alsa_elem_remove_callbacks_by_data(snk->custom_name_elem, h);
+  }
+  g_ptr_array_free(h->widgets, TRUE);
+  g_strfreev(h->groups);
+  g_free(h);
+}
+
+static struct output_header *create_output_header(
+  struct alsa_card *card,
+  GtkWidget        *grid,
+  int               count,
+  int               col0
+) {
+  struct output_header *h = g_new0(struct output_header, 1);
+
+  h->card = card;
+  h->grid = grid;
+  h->count = count;
+  h->col0 = col0;
+  h->widgets = g_ptr_array_new();
+
+  output_header_build(h);
+
+  for (int i = 0; i < count; i++) {
+    struct routing_snk *snk = get_analogue_output_snk(card, i + 1);
+
+    if (snk && snk->custom_name_elem)
+      alsa_elem_add_callback(
+        snk->custom_name_elem, output_header_name_changed, h, NULL
+      );
+  }
+  g_object_weak_ref(G_OBJECT(grid), (GWeakNotify)output_header_free, h);
+  return h;
+}
+
+// A group whose outputs share one set of controls (the Red's knob groups:
+// one fader, mute and dim for Monitor 1-2) carries them on its first
+// output only. Stretch each such control across the empty columns to its
+// right that belong to the same group, so it sits under the whole group
+// rather than under its first channel. Only with a named header, since
+// that is what defines the groups.
+static void span_group_controls(
+  struct output_header *h,
+  int                   first_row,
+  int                   last_row
+) {
+  if (!h->groups)
+    return;
+
+  GtkLayoutManager *lm = gtk_widget_get_layout_manager(h->grid);
+
+  for (int row = first_row; row <= last_row; row++) {
+    for (int i = 0; i < h->count; ) {
+      GtkWidget *w = gtk_grid_get_child_at(GTK_GRID(h->grid), i + h->col0, row);
+      int j = i + 1;
+
+      if (!w) {
+        i++;
+        continue;
+      }
+      while (j < h->count &&
+             !strcmp(h->groups[i], h->groups[j]) &&
+             !gtk_grid_get_child_at(GTK_GRID(h->grid), j + h->col0, row))
+        j++;
+      if (j - i > 1)
+        gtk_grid_layout_child_set_column_span(
+          GTK_GRID_LAYOUT_CHILD(gtk_layout_manager_get_layout_child(lm, w)),
+          j - i
+        );
+      i = j;
+    }
+  }
 }
 
 static void add_talkback_controls_enum(
@@ -1248,12 +1451,17 @@ static void create_output_controls(
   }
   int sw_hw_row = has_output_dim ? 5 : 4;
 
-  for (int i = 0; i < output_count; i++) {
-    char s[20];
-    snprintf(s, 20, "%d", i + 1);
-    GtkWidget *label = gtk_label_new(s);
-    gtk_grid_attach(GTK_GRID(output_grid), label, i + line_1_col, 0, 1, 1);
-  }
+  struct output_header *header =
+    create_output_header(card, output_grid, output_count, line_1_col);
+
+  // Where the global Mute/Dim go. Normally the left-hand column, beside
+  // the HW dial; but on a device whose first output group is "Monitor"
+  // (the Focusrite Red, which has no HW dial) they ARE that group's mute
+  // and dim, so they go under the Monitor faders instead and
+  // span_group_controls() stretches them across the group.
+  int monitor_group =
+    header->groups && !strcmp(header->groups[0], "Monitor");
+  int mute_dim_col = monitor_group ? line_1_col : 0;
 
   for (int i = 0; i < elems->len; i++) {
     struct alsa_elem *elem = g_ptr_array_index(elems, i);
@@ -1369,17 +1577,23 @@ static void create_output_controls(
         elem, "*audio-volume-high", "*audio-volume-muted"
       );
       gtk_widget_add_css_class(w, "mute");
-      gtk_widget_set_tooltip_text(w, "Mute HW controlled outputs");
-      gtk_grid_attach(GTK_GRID(output_grid), w, 0, 3, 1, 1);
+      gtk_widget_set_tooltip_text(
+        w, monitor_group
+             ? "Mute the Monitor outputs and the outputs set to HW"
+             : "Mute HW controlled outputs"
+      );
+      gtk_grid_attach(GTK_GRID(output_grid), w, mute_dim_col, 3, 1, 1);
     } else if (strcmp(elem->name, "Dim Playback Switch") == 0) {
       w = make_boolean_alsa_elem(
         elem, "*audio-volume-medium", "*audio-volume-low"
       );
       gtk_widget_add_css_class(w, "dim");
       gtk_widget_set_tooltip_text(
-        w, "Dim (lower volume) of HW controlled outputs"
+        w, monitor_group
+             ? "Dim (lower volume) of the Monitor outputs and the outputs set to HW"
+             : "Dim (lower volume) of HW controlled outputs"
       );
-      gtk_grid_attach(GTK_GRID(output_grid), w, 0, 4, 1, 1);
+      gtk_grid_attach(GTK_GRID(output_grid), w, mute_dim_col, 4, 1, 1);
     } else if (strcmp(elem->name, "Speaker Mute Playback Switch") == 0) {
       w = make_boolean_alsa_elem(
         elem, "*audio-volume-high", "*audio-volume-muted"
@@ -1408,6 +1622,9 @@ static void create_output_controls(
       gtk_grid_attach(GTK_GRID(output_grid), w, column, 5, 1, 1);
     }
   }
+
+  // Fader, mute, dim and SW/HW rows
+  span_group_controls(header, 2, sw_hw_row);
 
   // Add monitor group indicator labels for each output
   for (int i = 0; i < output_count; i++) {
