@@ -325,6 +325,12 @@ void create_card_window(struct alsa_card *card) {
     GTK_APPLICATION_WINDOW(card->window_main), TRUE
   );
   add_window_action_map(GTK_WINDOW(card->window_main));
+
+  // On a snd-clarett card the startup window holds no reset actions (see
+  // add_reset_actions()), so offer it only if there is a setting to show.
+  if (has_startup && card->is_snd_clarett && !startup_has_controls(card))
+    has_startup = false;
+
   if (has_startup)
     add_startup_action_map(card);
   if (has_mixer)

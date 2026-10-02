@@ -1636,6 +1636,7 @@ static void alsa_get_serial_number(struct alsa_card *card) {
   if (!f) {
     card->serial = alsa_get_clarett_slug(card);
     card->serial_is_model_only = !!card->serial;
+    card->is_snd_clarett = !!card->serial;
     if (!card->serial)
       fprintf(
         stderr, "can't open %s: %s\n", path, strerror(errno)

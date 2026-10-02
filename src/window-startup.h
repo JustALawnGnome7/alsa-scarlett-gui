@@ -6,3 +6,7 @@
 #include "alsa.h"
 
 GtkWidget *create_startup_controls(struct alsa_card *card);
+
+// Does the card have any startup setting (as opposed to only the
+// reboot/reset/update actions)?
+int startup_has_controls(struct alsa_card *card);

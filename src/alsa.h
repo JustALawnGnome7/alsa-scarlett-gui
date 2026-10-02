@@ -279,6 +279,10 @@ struct alsa_card {
   // isn't worth showing in window titles
   int                 serial_is_model_only;
 
+  // driven by snd-clarett (Thunderbolt Clarett and Red): the card has a
+  // /proc/asound/card<N>/clarett entry
+  int                 is_snd_clarett;
+
   char               *name;
   int                 driver_type;
   char               *fcp_socket;

@@ -315,6 +315,16 @@ static void add_reset_actions(
       card->driver_type != DRIVER_TYPE_SOCKET)
     return;
 
+  // Not on the Thunderbolt Clarett and Red (snd-clarett). Their reset
+  // erases the settings area of flash through FCP flash commands that
+  // have never been exercised on these units, and then reboots the
+  // device off the PCIe bus; the driver relies on the setup the unit
+  // keeps in flash, so a unit left unable to come back would need the
+  // vendor's own software to recover. There is no firmware update for
+  // them here either.
+  if (card->is_snd_clarett)
+    return;
+
   // Add reboot action if there is a control that requires a reboot
   // to take effect
   if (show_reboot_option) {
@@ -409,6 +419,16 @@ static void add_reset_actions(
   );
 
   g_free(s);
+}
+
+int startup_has_controls(struct alsa_card *card) {
+  GPtrArray *elems = card->elems;
+
+  return get_elem_by_name(elems, "Standalone Switch") ||
+         get_elem_by_name(elems, "Phantom Power Persistence Capture Switch") ||
+         get_elem_by_name(elems, "MSD Mode Switch") ||
+         get_elem_by_prefix(elems, "S/PDIF Mode") ||
+         get_elem_by_prefix(elems, "Digital I/O Mode");
 }
 
 static void add_no_startup_controls_msg(GtkWidget *grid) {
