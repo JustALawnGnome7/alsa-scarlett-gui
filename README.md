@@ -2,8 +2,8 @@
 
 <img src="img/alsa-scarlett-gui.png" align="right">
 
-A Linux control panel for Focusrite Scarlett, Clarett, and Vocaster
-USB audio interfaces — the equivalent of Focusrite Control /
+A Linux control panel for Focusrite Scarlett, Clarett, Red, and
+Vocaster audio interfaces — the equivalent of Focusrite Control /
 Scarlett MixControl / Vocaster Hub on Linux.
 
 Configure routing, mixing, input/output levels, DSP processing,
@@ -117,7 +117,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ## Disclaimer Third Parties
 
-Focusrite, Scarlett, Clarett, and Vocaster are trademarks or
+Focusrite, Scarlett, Clarett, Red, and Vocaster are trademarks or
 registered trademarks of Focusrite Audio Engineering Limited in
 England, USA, and/or other countries. Use of these trademarks does not
 imply any affiliation or endorsement of this software.
