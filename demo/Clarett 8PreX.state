@@ -14790,19 +14790,6 @@ state.C8PreX {
 			item.2 RCA
 		}
 	}
-	control.1223 {
-		iface MIXER
-		name 'S/PDIF Source Playback Enum'
-		value None
-		comment {
-			access 'read write user'
-			type ENUMERATED
-			count 1
-			item.0 None
-			item.1 Optical
-			item.2 RCA
-		}
-	}
 	control.1224 {
 		iface CARD
 		name 'FCP Server Version'

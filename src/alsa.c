@@ -900,9 +900,12 @@ static int is_elem_routing_snk(struct alsa_elem *elem) {
   // Routing sinks in these categories always name a physical output channel
   // ("S/PDIF Output 2 Playback Enum", "Analogue 3 Playback Enum", ...). A
   // device-setting enum that shares the category prefix but names no channel -
-  // e.g. the Clarett "S/PDIF Source Playback Enum" (S/PDIF *output connector*
-  // select) - is not a sink; excluding "Source" keeps it out of the router,
-  // where it would have no channel number and desync the sink count (assert).
+  // e.g. the "S/PDIF Source Playback Enum" (S/PDIF *output connector* select)
+  // that earlier Clarett Thunderbolt maps exposed - is not a sink; excluding
+  // "Source" keeps it out of the router, where it would have no channel
+  // number and desync the sink count (assert). Current maps fold the output
+  // connector into "S/PDIF Source Capture Enum", but older installed maps
+  // still create it.
   if (strstr(elem->name, "Playback Enum") &&
       !strstr(elem->name, "Source") && (
        strncmp(elem->name, "Analogue ", 9) == 0 ||
