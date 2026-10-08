@@ -225,6 +225,18 @@ struct alsa_elem {
   int   count;
   int   index;
 
+  // the ALSA control's own index (the "index" in its id, not the
+  // per-channel split above); tells apart controls that share a name
+  int   ctl_index;
+
+  // a "Level Meter" wider than one ALSA control (128 values) arrives as
+  // several controls of that name, ctl_index 0, 1, ...; they are joined
+  // into the first, which reads each part's numid into its slice of the
+  // values (see alsa_join_level_meter_parts()). 0 = not split.
+  int   meter_n_parts;
+  int   meter_part_numid[MAX_METER_PARTS];
+  int   meter_part_count[MAX_METER_PARTS];
+
   // for gain/volume elements, the value range, dB type, and dB range
   int min_val;
   int max_val;
@@ -458,6 +470,7 @@ struct alsa_elem *alsa_create_optional_enum_elem(
 struct alsa_card *card_create(int card_num);
 
 // parse elements (used by alsa-sim.c)
+void alsa_join_level_meter_parts(struct alsa_card *card);
 void alsa_set_lr_nums(struct alsa_card *card);
 void alsa_get_routing_controls(struct alsa_card *card);
 void alsa_init_mixer_gains_cache(struct alsa_card *card);

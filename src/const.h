@@ -11,3 +11,8 @@
 
 // maximum number of mux inputs (4th Gen 18i20 has 53)
 #define MAX_MUX_IN 53
+
+// maximum number of "Level Meter" controls one meter can be split across
+// (one ALSA control holds 128 values; the Thunderbolt Red range has more
+// metered destinations than that, so its driver splits them)
+#define MAX_METER_PARTS 4

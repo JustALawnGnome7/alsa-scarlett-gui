@@ -362,8 +362,13 @@ static int alsa_config_to_new_elem(
     } else if (strcmp(key, "comment") == 0) {
       alsa_parse_comment_node(node, &elem);
 
-    // this isn't needed
+    // the control's index: tells apart controls sharing a name, such as
+    // the parts of a Level Meter split across several controls
     } else if (strcmp(key, "index") == 0) {
+      long ctl_index;
+
+      if (snd_config_get_integer(node, &ctl_index) >= 0)
+        elem.ctl_index = ctl_index;
 
     } else {
       printf("skipping unknown node %s for %d\n", key, id);
@@ -535,6 +540,7 @@ void create_sim_from_file(GtkWindow *w, char *fn) {
 
   snd_config_delete(config);
 
+  alsa_join_level_meter_parts(card);
   alsa_set_lr_nums(card);
   alsa_get_routing_controls(card);
   alsa_init_mixer_gains_cache(card);

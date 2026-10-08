@@ -227,6 +227,17 @@ char *alsa_get_elem_name(struct alsa_elem *elem) {
   return strdup(name);
 }
 
+// get the element's ALSA control index (the "index" in its id)
+static int alsa_get_elem_ctl_index(struct alsa_elem *elem) {
+  snd_ctl_elem_info_t *elem_info;
+
+  snd_ctl_elem_info_alloca(&elem_info);
+  snd_ctl_elem_info_set_numid(elem_info, elem->numid);
+  snd_ctl_elem_info(elem->card->handle, elem_info);
+
+  return snd_ctl_elem_info_get_index(elem_info);
+}
+
 // get the element value
 // boolean, enum, or int all returned as long ints
 long alsa_get_elem_value(struct alsa_elem *elem) {
@@ -280,6 +291,22 @@ long *alsa_get_elem_int_values(struct alsa_elem *elem) {
   snd_ctl_elem_value_t *elem_value;
 
   snd_ctl_elem_value_alloca(&elem_value);
+
+  // a joined Level Meter: read each part into its slice
+  if (elem->meter_n_parts > 1) {
+    int offset = 0;
+
+    for (int p = 0; p < elem->meter_n_parts; p++) {
+      snd_ctl_elem_value_set_numid(elem_value, elem->meter_part_numid[p]);
+      snd_ctl_elem_read(elem->card->handle, elem_value);
+
+      for (int i = 0; i < elem->meter_part_count[p]; i++)
+        values[offset + i] = snd_ctl_elem_value_get_integer(elem_value, i);
+      offset += elem->meter_part_count[p];
+    }
+    return values;
+  }
+
   snd_ctl_elem_value_set_numid(elem_value, elem->numid);
   snd_ctl_elem_read(elem->card->handle, elem_value);
 
@@ -712,6 +739,7 @@ static void alsa_get_elem(struct alsa_card *card, int numid) {
   alsa_elem.type = alsa_get_elem_type(&alsa_elem);
   alsa_elem.name = alsa_get_elem_name(&alsa_elem);
   alsa_elem.count = alsa_get_elem_count(&alsa_elem);
+  alsa_elem.ctl_index = alsa_get_elem_ctl_index(&alsa_elem);
 
   switch (alsa_elem.type) {
     case SND_CTL_ELEM_TYPE_BOOLEAN:
@@ -762,6 +790,114 @@ static void alsa_get_elem(struct alsa_card *card, int numid) {
   }
 }
 
+static int compare_ctl_index(const void *a, const void *b) {
+  const struct alsa_elem *ea = *(struct alsa_elem * const *)a;
+  const struct alsa_elem *eb = *(struct alsa_elem * const *)b;
+
+  return ea->ctl_index - eb->ctl_index;
+}
+
+// A meter with more channels than one ALSA control holds (128) arrives
+// as several "Level Meter" controls, ctl_index 0, 1, ..., each with the
+// next run of channels and its own labels. Join them into the first so
+// that the rest of the program sees one meter, as before: the counts and
+// labels are concatenated, and alsa_get_elem_int_values() reads every
+// part. Called once the element list is complete, before anything looks
+// the meter up.
+void alsa_join_level_meter_parts(struct alsa_card *card) {
+  struct alsa_elem *parts[MAX_METER_PARTS];
+  int n = 0;
+
+  for (int i = 0; i < card->elems->len; i++) {
+    struct alsa_elem *elem = g_ptr_array_index(card->elems, i);
+
+    if (strcmp(elem->name, "Level Meter") != 0)
+      continue;
+    if (n == MAX_METER_PARTS) {
+      fprintf(stderr, "more than %d Level Meter controls; ignoring the rest\n",
+              MAX_METER_PARTS);
+      break;
+    }
+    parts[n++] = elem;
+  }
+  if (n < 2)
+    return;
+
+  qsort(parts, n, sizeof(parts[0]), compare_ctl_index);
+
+  struct alsa_elem *base = parts[0];
+  int total = 0;
+  int have_labels = 1;
+
+  for (int p = 0; p < n; p++) {
+    total += parts[p]->count;
+    if (!parts[p]->meter_labels)
+      have_labels = 0;
+  }
+
+  // labels: concatenate, or drop them all if any part lacks its own,
+  // since a partial list would misname every later channel
+  char **labels = NULL;
+  if (have_labels) {
+    labels = calloc(total, sizeof(char *));
+    for (int p = 0, offset = 0; p < n; p++) {
+      memcpy(labels + offset, parts[p]->meter_labels,
+             parts[p]->count * sizeof(char *));
+      offset += parts[p]->count;
+      free(parts[p]->meter_labels);
+      parts[p]->meter_labels = NULL;
+    }
+  } else {
+    for (int p = 0; p < n; p++) {
+      if (!parts[p]->meter_labels)
+        continue;
+      for (int j = 0; j < parts[p]->count; j++)
+        free(parts[p]->meter_labels[j]);
+      free(parts[p]->meter_labels);
+      parts[p]->meter_labels = NULL;
+    }
+  }
+
+  // simulated values, if every part has them; a real card re-reads below
+  long *values = NULL;
+  int have_values = 1;
+  for (int p = 0; p < n; p++)
+    if (!parts[p]->values)
+      have_values = 0;
+  if (have_values) {
+    values = calloc(total, sizeof(long));
+    for (int p = 0, offset = 0; p < n; p++) {
+      memcpy(values + offset, parts[p]->values,
+             parts[p]->count * sizeof(long));
+      offset += parts[p]->count;
+    }
+  }
+
+  for (int p = 0; p < n; p++) {
+    base->meter_part_numid[p] = parts[p]->numid;
+    base->meter_part_count[p] = parts[p]->count;
+  }
+  base->meter_n_parts = n;
+
+  // retire the other parts; nothing holds a pointer to them yet
+  for (int p = 1; p < n; p++) {
+    g_ptr_array_remove(card->elems, parts[p]);
+    free(parts[p]->name);
+    free(parts[p]->values);
+    free(parts[p]);
+  }
+
+  free(base->values);
+  base->values = values;
+  base->count = total;
+  base->meter_labels = labels;
+
+  if (!base->is_simulated && card->num != SIMULATED_CARD_NUM) {
+    free(base->values);
+    base->values = alsa_get_elem_int_values(base);
+  }
+}
+
 // scan the ALSA ctl element list container and put the useful
 // elements into the cards->elems array of struct alsa_elem
 static void alsa_get_elem_list(struct alsa_card *card) {
@@ -780,6 +916,8 @@ static void alsa_get_elem_list(struct alsa_card *card) {
     int numid = snd_ctl_elem_list_get_numid(list, i);
     alsa_get_elem(card, numid);
   }
+
+  alsa_join_level_meter_parts(card);
 
   // free the ALSA list
   snd_ctl_elem_list_free_space(list);
