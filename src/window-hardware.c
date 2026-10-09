@@ -9,44 +9,52 @@ struct hw_info {
   char *name;
 };
 
-struct hw_cat {
+// a column of a tab: a bold heading over its own list
+struct hw_col {
   char *name;
   struct hw_info *info;
 };
 
+// a tab: either one list (info), or several side-by-side columns (cols)
+struct hw_cat {
+  char *name;
+  struct hw_info *info;
+  struct hw_col *cols;
+};
+
 struct hw_info gen_1_info[] = {
-  { "Scarlett 6i6 1st Gen" },
-  { "Scarlett 8i6 1st Gen" },
-  { "Scarlett 18i6 1st Gen" },
-  { "Scarlett 18i8 1st Gen" },
-  { "Scarlett 18i20 1st Gen" },
+  { "Scarlett 6i6" },
+  { "Scarlett 8i6" },
+  { "Scarlett 18i6" },
+  { "Scarlett 18i8" },
+  { "Scarlett 18i20" },
   { }
 };
 
 struct hw_info gen_2_info[] = {
-  { "Scarlett 6i6 2nd Gen" },
-  { "Scarlett 18i8 2nd Gen" },
-  { "Scarlett 18i20 2nd Gen" },
+  { "Scarlett 6i6" },
+  { "Scarlett 18i8" },
+  { "Scarlett 18i20" },
   { }
 };
 
 struct hw_info gen_3_info[] = {
-  { "Scarlett Solo 3rd Gen" },
-  { "Scarlett 2i2 3rd Gen" },
-  { "Scarlett 4i4 3rd Gen" },
-  { "Scarlett 8i6 3rd Gen" },
-  { "Scarlett 18i8 3rd Gen" },
-  { "Scarlett 18i20 3rd Gen" },
+  { "Scarlett Solo" },
+  { "Scarlett 2i2" },
+  { "Scarlett 4i4" },
+  { "Scarlett 8i6" },
+  { "Scarlett 18i8" },
+  { "Scarlett 18i20" },
   { }
 };
 
 struct hw_info gen_4_info[] = {
-  { "Scarlett Solo 4th Gen" },
-  { "Scarlett 2i2 4th Gen" },
-  { "Scarlett 4i4 4th Gen" },
-  { "Scarlett 16i16 4th Gen" },
-  { "Scarlett 18i16 4th Gen" },
-  { "Scarlett 18i20 4th Gen" },
+  { "Scarlett Solo" },
+  { "Scarlett 2i2" },
+  { "Scarlett 4i4" },
+  { "Scarlett 16i16" },
+  { "Scarlett 18i16" },
+  { "Scarlett 18i20" },
   { }
 };
 
@@ -77,8 +85,8 @@ struct hw_info clarett_plus_info[] = {
 };
 
 // Same driver and the same protocol as the Thunderbolt Claretts, but a
-// different product line, so it gets a heading of its own rather than
-// being filed under Clarett. No "(TB)" qualifier: unlike the Clarett,
+// different product line, so it gets a tab of its own rather than a
+// column under Clarett. No "(TB)" qualifier: unlike the Clarett,
 // there is no USB Red to tell it apart from.
 struct hw_info red_thunderbolt_info[] = {
   { "Red 4Pre (untested)" },
@@ -94,27 +102,29 @@ struct hw_info vocaster_info[] = {
   { }
 };
 
+struct hw_col scarlett_cols[] = {
+  { "1st Gen", gen_1_info },
+  { "2nd Gen", gen_2_info },
+  { "3rd Gen", gen_3_info },
+  { "4th Gen", gen_4_info },
+  { }
+};
+
+struct hw_col clarett_cols[] = {
+  { "Clarett (TB)", clarett_thunderbolt_info },
+  { "Clarett USB",  clarett_usb_info },
+  { "Clarett+",     clarett_plus_info },
+  { }
+};
+
 struct hw_cat hw_cat[] = {
-  { "1st Gen",
-    gen_1_info
+  { "Scarlett",
+    NULL,
+    scarlett_cols
   },
-  { "2nd Gen",
-    gen_2_info
-  },
-  { "3rd Gen",
-    gen_3_info
-  },
-  { "4th Gen",
-    gen_4_info
-  },
-  { "Clarett (TB)",
-    clarett_thunderbolt_info
-  },
-  { "Clarett USB",
-    clarett_usb_info
-  },
-  { "Clarett+",
-    clarett_plus_info
+  { "Clarett",
+    NULL,
+    clarett_cols
   },
   { "Red",
     red_thunderbolt_info
@@ -169,10 +179,50 @@ static gboolean on_key_press(
   return 0;
 }
 
-GtkWidget *make_notebook_page(struct hw_cat *cat) {
+static GtkWidget *make_column(struct hw_col *col) {
   GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+  GtkWidget *heading = gtk_label_new(NULL);
+  char *markup = g_markup_printf_escaped("<b><u>%s</u></b>", col->name);
+
+  gtk_label_set_markup(GTK_LABEL(heading), markup);
+  g_free(markup);
+  gtk_widget_set_halign(heading, GTK_ALIGN_START);
+  gtk_box_append(GTK_BOX(box), heading);
+
+  for (struct hw_info *info = col->info; info->name; info++) {
+    GtkWidget *label = gtk_label_new(info->name);
+
+    gtk_widget_set_halign(label, GTK_ALIGN_START);
+    gtk_box_append(GTK_BOX(box), label);
+  }
+  return box;
+}
+
+GtkWidget *make_notebook_page(struct hw_cat *cat) {
+  if (cat->cols) {
+    GtkWidget *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 30);
+
+    // centre the columns in the tab
+    gtk_widget_set_halign(row, GTK_ALIGN_CENTER);
+
+    for (struct hw_col *col = cat->cols; col->name; col++) {
+      GtkWidget *column = make_column(col);
+
+      gtk_widget_set_valign(column, GTK_ALIGN_START);
+      gtk_box_append(GTK_BOX(row), column);
+    }
+    return row;
+  }
+
+  // a single list: one centred column of left-aligned rows, like the
+  // columns above but without a heading
+  GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+
+  gtk_widget_set_halign(box, GTK_ALIGN_CENTER);
   for (struct hw_info *info = cat->info; info->name; info++) {
     GtkWidget *label = gtk_label_new(info->name);
+
+    gtk_widget_set_halign(label, GTK_ALIGN_START);
     gtk_box_append(GTK_BOX(box), label);
   }
   return box;
@@ -182,6 +232,14 @@ void add_notebook_pages(GtkWidget *notebook) {
   for (struct hw_cat *cat = hw_cat; cat->name; cat++) {
     GtkWidget *page = make_notebook_page(cat);
     GtkWidget *label = gtk_label_new(cat->name);
+
+    // space between each tab's contents and the notebook's border; the
+    // window opens at its natural size, so this is also what sets how
+    // roomy it opens
+    gtk_widget_set_margin_start(page, 20);
+    gtk_widget_set_margin_end(page, 20);
+    gtk_widget_set_margin_top(page, 15);
+    gtk_widget_set_margin_bottom(page, 15);
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), page, label);
   }
 }
@@ -210,8 +268,12 @@ void create_hardware_window(GtkApplication *app) {
   gtk_widget_add_css_class(top, "window-frame");
   gtk_window_set_child(GTK_WINDOW(window_hardware), top);
 
+  // No "window-content" class: the notebook's own border is suppressed by
+  // the ".window-frame notebook" rule (its pages carry the red border), so
+  // all that class added here was its padding, which doubled the space
+  // between the window's edge and the red border compared with the main
+  // window.
   GtkWidget *notebook = gtk_notebook_new();
-  gtk_widget_add_css_class(notebook, "window-content");
   gtk_frame_set_child(GTK_FRAME(top), notebook);
 
   add_notebook_pages(notebook);
