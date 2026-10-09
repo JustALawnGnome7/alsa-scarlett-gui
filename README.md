@@ -21,7 +21,7 @@ docs still need some updating.
 - Clarett (TB) 2Pre, 4Pre, 8Pre, 8PreX
 - Clarett 2Pre, 4Pre, 8Pre USB
 - Clarett+ 2Pre, 4Pre, 8Pre
-- Red 8Line
+- Red 8Line; Red 4Pre, 8Pre and 16Line (untested on hardware)
 - Vocaster One and Vocaster Two
 
 The Thunderbolt interfaces — the Claretts marked (TB), and the Red —

@@ -373,7 +373,11 @@ GtkWidget *create_levels_controls(struct alsa_card *card) {
 
   GtkGrid *grid = data->grid = GTK_GRID(grid_widget);
 
-  GtkWidget *count_labels[MAX_MUX_IN] = { NULL };
+  // columns labelled so far: a category's ports fill columns 1..n in
+  // order, so the widest category seen sets how many need a number. (A
+  // fixed array of MAX_MUX_IN here overflowed on cards with a category
+  // wider than that, such as a Focusrite Red's 64 PCM channels.)
+  int count_labels = 0;
 
   int meter_num = 0;
 
@@ -407,8 +411,10 @@ GtkWidget *create_levels_controls(struct alsa_card *card) {
          j++) {
 
       // add a count label if that hasn't already been done
-      if (!count_labels[j])
-        count_labels[j] = add_count_label(grid, j);
+      if (j >= count_labels) {
+        add_count_label(grid, j);
+        count_labels = j + 1;
+      }
 
       // create the meter widget and attach to the grid
       GtkWidget *meter = gtk_dial_new_with_range(-80, 0, 0, 0);

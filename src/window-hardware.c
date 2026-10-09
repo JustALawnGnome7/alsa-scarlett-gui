@@ -81,7 +81,10 @@ struct hw_info clarett_plus_info[] = {
 // being filed under Clarett. No "(TB)" qualifier: unlike the Clarett,
 // there is no USB Red to tell it apart from.
 struct hw_info red_thunderbolt_info[] = {
+  { "Red 4Pre (untested)" },
+  { "Red 8Pre (untested)" },
   { "Red 8Line" },
+  { "Red 16Line (untested)" },
   { }
 };
 

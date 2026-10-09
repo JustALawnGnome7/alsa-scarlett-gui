@@ -1902,8 +1902,8 @@ static int is_supported_card(snd_ctl_card_info_t *info) {
       strncmp(name, "Vocaster", 8) == 0)
     return 1;
 
-  // snd-clarett (Clarett 2Pre/4Pre/8Pre/8PreX, Red 8Line): driver
-  // name "Clarett"
+  // snd-clarett (Clarett 2Pre/4Pre/8Pre/8PreX, Red 4Pre/8Pre/8Line/16Line):
+  // driver name "Clarett"
   if (strcmp(driver, "Clarett") == 0)
     return 1;
 

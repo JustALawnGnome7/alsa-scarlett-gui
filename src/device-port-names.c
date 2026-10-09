@@ -201,6 +201,86 @@ static const char *red_8line_analogue_snk[] = {
   NULL
 };
 
+// Red 16Line analogue inputs (sources): preamps on 1-2 only
+static const char *red_16line_analogue_src[] = {
+  "Mic/Line/Inst 1", "Mic/Line/Inst 2",
+  "Line 3", "Line 4",
+  "Line 5", "Line 6",
+  "Line 7", "Line 8",
+  "Line 9", "Line 10",
+  "Line 11", "Line 12",
+  "Line 13", "Line 14",
+  "Line 15", "Line 16",
+  NULL
+};
+
+// Red 16Line analogue outputs (sinks)
+static const char *red_16line_analogue_snk[] = {
+  "Monitor 1", "Monitor 2",
+  "Headphones 1 (L)", "Headphones 1 (R)",
+  "Headphones 2 (L)", "Headphones 2 (R)",
+  "Line 1", "Line 2",
+  "Line 3", "Line 4",
+  "Line 5", "Line 6",
+  "Line 7", "Line 8",
+  "Line 9", "Line 10",
+  "Line 11", "Line 12",
+  "Line 13", "Line 14",
+  "Line 15", "Line 16",
+  NULL
+};
+
+// Red 4Pre analogue inputs (sources): preamps on 1-4, Inst on 1-2
+static const char *red_4pre_analogue_src[] = {
+  "Mic/Line/Inst 1", "Mic/Line/Inst 2",
+  "Mic/Line 3", "Mic/Line 4",
+  "Line 5", "Line 6",
+  "Line 7", "Line 8",
+  NULL
+};
+
+// Red 4Pre analogue outputs (sinks). The Pre models number their line
+// outputs from 3, as the unit does: the monitor pair counts as 1-2.
+static const char *red_4pre_analogue_snk[] = {
+  "Monitor 1", "Monitor 2",
+  "Headphones 1 (L)", "Headphones 1 (R)",
+  "Headphones 2 (L)", "Headphones 2 (R)",
+  "Line 3", "Line 4",
+  "Line 5", "Line 6",
+  "Line 7", "Line 8",
+  "Line 9", "Line 10",
+  NULL
+};
+
+// Red 8Pre analogue inputs (sources): preamps on 1-8, Inst on 1-2
+static const char *red_8pre_analogue_src[] = {
+  "Mic/Line/Inst 1", "Mic/Line/Inst 2",
+  "Mic/Line 3", "Mic/Line 4",
+  "Mic/Line 5", "Mic/Line 6",
+  "Mic/Line 7", "Mic/Line 8",
+  "Line 9", "Line 10",
+  "Line 11", "Line 12",
+  "Line 13", "Line 14",
+  "Line 15", "Line 16",
+  NULL
+};
+
+// Red 8Pre analogue outputs (sinks), line outputs numbered from 3
+static const char *red_8pre_analogue_snk[] = {
+  "Monitor 1", "Monitor 2",
+  "Headphones 1 (L)", "Headphones 1 (R)",
+  "Headphones 2 (L)", "Headphones 2 (R)",
+  "Line 3", "Line 4",
+  "Line 5", "Line 6",
+  "Line 7", "Line 8",
+  "Line 9", "Line 10",
+  "Line 11", "Line 12",
+  "Line 13", "Line 14",
+  "Line 15", "Line 16",
+  "Line 17", "Line 18",
+  NULL
+};
+
 // Vocaster One analogue inputs (sources)
 static const char *vocaster_one_analogue_src[] = {
   "Host", "Aux",
@@ -460,6 +540,38 @@ static const char *red_8line_analogue_snk_pairs[] = {
   "Line 1–2", "Line 3–4", "Line 5–6", "Line 7–8", NULL
 };
 
+// Red 16Line analogue output pairs
+static const char *red_16line_analogue_snk_pairs[] = {
+  "Monitor 1–2", "Headphones 1", "Headphones 2",
+  "Line 1–2", "Line 3–4", "Line 5–6", "Line 7–8",
+  "Line 9–10", "Line 11–12", "Line 13–14", "Line 15–16", NULL
+};
+
+// Red 4Pre analogue output pairs
+static const char *red_4pre_analogue_snk_pairs[] = {
+  "Monitor 1–2", "Headphones 1", "Headphones 2",
+  "Line 3–4", "Line 5–6", "Line 7–8", "Line 9–10", NULL
+};
+
+// Red 8Pre analogue output pairs
+static const char *red_8pre_analogue_snk_pairs[] = {
+  "Monitor 1–2", "Headphones 1", "Headphones 2",
+  "Line 3–4", "Line 5–6", "Line 7–8", "Line 9–10",
+  "Line 11–12", "Line 13–14", "Line 15–16", "Line 17–18", NULL
+};
+
+// Red 16Line analogue input pairs
+static const char *red_16line_analogue_src_pairs[] = {
+  "Mic/Line/Inst 1–2", "Line 3–4", "Line 5–6", "Line 7–8",
+  "Line 9–10", "Line 11–12", "Line 13–14", "Line 15–16", NULL
+};
+
+// Red 8Pre analogue input pairs
+static const char *red_8pre_analogue_src_pairs[] = {
+  "Mic/Line/Inst 1–2", "Mic/Line 3–4", "Mic/Line 5–6", "Mic/Line 7–8",
+  "Line 9–10", "Line 11–12", "Line 13–14", "Line 15–16", NULL
+};
+
 // Vocaster One analogue output pairs
 static const char *vocaster_one_analogue_snk_pairs[] = {
   "Spkr/Headphones", "Aux", NULL
@@ -712,6 +824,14 @@ static const struct device_pair_names device_pair_names[] = {
   { 0, PC_HW, HW_TYPE_ANALOGUE, 0, analogue_src_pairs_inst_12_line_345678, "Red 8Line" },
   { 0, PC_HW, HW_TYPE_ANALOGUE, 1, red_8line_analogue_snk_pairs, "Red 8Line" },
 
+  // Red 16Line, 4Pre and 8Pre (snd-clarett, Thunderbolt)
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 0, red_16line_analogue_src_pairs, "Red 16Line" },
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 1, red_16line_analogue_snk_pairs, "Red 16Line" },
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 0, analogue_src_pairs_inst_12_mic_34_line_5678, "Red 4Pre" },
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 1, red_4pre_analogue_snk_pairs, "Red 4Pre" },
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 0, red_8pre_analogue_src_pairs, "Red 8Pre" },
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 1, red_8pre_analogue_snk_pairs, "Red 8Pre" },
+
   { 0 }
 };
 
@@ -843,6 +963,14 @@ static const struct device_port_names device_port_names[] = {
   // to list the analogue ports in channel order, which it does.
   { 0, PC_HW, HW_TYPE_ANALOGUE, 0, red_8line_analogue_src, "Red 8Line" },
   { 0, PC_HW, HW_TYPE_ANALOGUE, 1, red_8line_analogue_snk, "Red 8Line" },
+
+  // Red 16Line, 4Pre and 8Pre (snd-clarett, Thunderbolt); same requirement
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 0, red_16line_analogue_src, "Red 16Line" },
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 1, red_16line_analogue_snk, "Red 16Line" },
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 0, red_4pre_analogue_src, "Red 4Pre" },
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 1, red_4pre_analogue_snk, "Red 4Pre" },
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 0, red_8pre_analogue_src, "Red 8Pre" },
+  { 0, PC_HW, HW_TYPE_ANALOGUE, 1, red_8pre_analogue_snk, "Red 8Pre" },
 
   { 0 }
 };
