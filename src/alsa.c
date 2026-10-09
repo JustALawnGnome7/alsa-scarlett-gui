@@ -1689,34 +1689,36 @@ static void alsa_subscribe(struct alsa_card *card) {
   snd_ctl_poll_descriptors(card->handle, &card->pfd, 1);
 }
 
-// Read the model slug the Thunderbolt Clarett driver publishes at
-// /proc/asound/card<N>/clarett, e.g. "clarett-2pre".
+// Read the model slug the Thunderbolt Clarett driver publishes in the
+// card's components string as "Clarett:<slug>", e.g. "Clarett:clarett-2pre"
+// (snd-usb-audio publishes "USB<vid>:<pid>" there the same way).
 //
 // The whole Thunderbolt Clarett line shares one PCI ID, so the model is
-// only identifiable from this file; fcp-server keys its device maps on
-// the same string.
+// only identifiable from this component; fcp-server keys its device maps
+// on the same string.
 static char *alsa_get_clarett_slug(struct alsa_card *card) {
-  char path[256];
-  snprintf(path, sizeof(path), "/proc/asound/card%d/clarett", card->num);
+  static const char prefix[] = "Clarett:";
+  snd_ctl_card_info_t *info;
 
-  FILE *f = fopen(path, "r");
-  if (!f)
+  snd_ctl_card_info_alloca(&info);
+  if (snd_ctl_card_info(card->handle, info) < 0)
     return NULL;
 
-  char line[128];
-  char *slug = NULL;
+  // space-separated list of components; find the one with our prefix
+  const char *p = snd_ctl_card_info_get_components(info);
 
-  while (fgets(line, sizeof(line), f)) {
-    char value[64];
+  while (*p) {
+    size_t len = strcspn(p, " ");
 
-    if (sscanf(line, "slug: %63s", value) == 1) {
-      slug = strdup(value);
-      break;
-    }
+    if (len > sizeof(prefix) - 1 &&
+        strncmp(p, prefix, sizeof(prefix) - 1) == 0)
+      return strndup(p + sizeof(prefix) - 1, len - (sizeof(prefix) - 1));
+
+    p += len;
+    p += strspn(p, " ");
   }
-  fclose(f);
 
-  return slug;
+  return NULL;
 }
 
 static void alsa_get_usbid(struct alsa_card *card) {

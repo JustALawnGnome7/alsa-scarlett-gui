@@ -291,8 +291,8 @@ struct alsa_card {
   // isn't worth showing in window titles
   int                 serial_is_model_only;
 
-  // driven by snd-clarett (Thunderbolt Clarett and Red): the card has a
-  // /proc/asound/card<N>/clarett entry
+  // driven by snd-clarett (Thunderbolt Clarett and Red): the card names
+  // its model in a "Clarett:<slug>" component
   int                 is_snd_clarett;
 
   char               *name;
