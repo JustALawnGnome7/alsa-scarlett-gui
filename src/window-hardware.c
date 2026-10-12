@@ -86,11 +86,14 @@ struct hw_info clarett_plus_info[] = {
 
 // Same driver and the same protocol as the Thunderbolt Claretts, but a
 // different product line, so it gets a tab of its own rather than a
-// column under Clarett. No "(TB)" qualifier: unlike the Clarett,
-// there is no USB Red to tell it apart from.
-struct hw_info red_thunderbolt_info[] = {
+// column under Clarett. Its columns split it by Thunderbolt generation.
+struct hw_info red_tb2_info[] = {
   { "Red 4Pre (untested)" },
   { "Red 8Pre (untested)" },
+  { }
+};
+
+struct hw_info red_tb3_info[] = {
   { "Red 8Line" },
   { "Red 16Line (untested)" },
   { }
@@ -111,9 +114,15 @@ struct hw_col scarlett_cols[] = {
 };
 
 struct hw_col clarett_cols[] = {
-  { "Clarett (TB)", clarett_thunderbolt_info },
-  { "Clarett USB",  clarett_usb_info },
-  { "Clarett+",     clarett_plus_info },
+  { "Clarett (TB2)", clarett_thunderbolt_info },
+  { "Clarett USB",   clarett_usb_info },
+  { "Clarett+",      clarett_plus_info },
+  { }
+};
+
+struct hw_col red_cols[] = {
+  { "Red (TB2)", red_tb2_info },
+  { "Red (TB3)", red_tb3_info },
   { }
 };
 
@@ -127,7 +136,8 @@ struct hw_cat hw_cat[] = {
     clarett_cols
   },
   { "Red",
-    red_thunderbolt_info
+    NULL,
+    red_cols
   },
   { "Vocaster",
     vocaster_info

@@ -18,13 +18,13 @@ docs still need some updating.
 - Scarlett 2nd Gen 6i6, 18i8, 18i20
 - Scarlett 3rd Gen Solo, 2i2, 4i4, 8i6, 18i8, 18i20
 - Scarlett 4th Gen Solo, 2i2, 4i4, 16i16, 18i16, 18i20
-- Clarett (TB) 2Pre, 4Pre, 8Pre, 8PreX
+- Clarett (TB2) 2Pre, 4Pre, 8Pre, 8PreX
 - Clarett 2Pre, 4Pre, 8Pre USB
 - Clarett+ 2Pre, 4Pre, 8Pre
 - Red 8Line; Red 4Pre, 8Pre and 16Line (untested on hardware)
 - Vocaster One and Vocaster Two
 
-The Thunderbolt interfaces — the Claretts marked (TB), and the Red —
+The Thunderbolt interfaces — the Claretts marked (TB2), and the Red —
 are not USB devices and are not handled by the in-kernel
 `snd-usb-audio`/scarlett2 driver: they need the out-of-tree
 `snd-clarett` driver, and `fcp-server` running against their device
