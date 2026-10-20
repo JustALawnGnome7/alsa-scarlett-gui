@@ -245,10 +245,11 @@ static GtkWidget *create_levels_controls_with_labels(
   int max_count = 0;
 
   // Map each label "type" (e.g. "Sink PCM") to its grid row. A type that
-  // recurs non-contiguously — as "Sink PCM" does on the Clarett 8PreX, whose
-  // register-ordered capture block interleaves the Loopback pair between PCM
-  // 10 and 11 — reuses its existing row instead of starting a second one, so
-  // the two "Sink PCM" lines combine into one.
+  // recurs non-contiguously — as "Sink PCM" does on the Thunderbolt Clarett
+  // and Red, whose meters follow the router order and place the loopback pair
+  // (the last two PCM channels) after the outputs — reuses its existing row
+  // instead of starting a second one, so the two "Sink PCM" lines combine
+  // into one.
   GHashTable *type_rows =
     g_hash_table_new_full(g_str_hash, g_str_equal, free, NULL);
 

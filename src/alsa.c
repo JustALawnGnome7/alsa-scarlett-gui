@@ -1030,22 +1030,11 @@ static int is_elem_routing_snk(struct alsa_elem *elem) {
   if (strstr(elem->name, "Capture Enum") && (
        strncmp(elem->name, "PCM ", 4) == 0 ||
        strncmp(elem->name, "Mixer ", 6) == 0 ||
-       strncmp(elem->name, "DSP ", 4) == 0 ||
-       strncmp(elem->name, "Loopback ", 9) == 0
+       strncmp(elem->name, "DSP ", 4) == 0
      ))
     return 1;
 
-  // Routing sinks in these categories always name a physical output channel
-  // ("S/PDIF Output 2 Playback Enum", "Analogue 3 Playback Enum", ...). A
-  // device-setting enum that shares the category prefix but names no channel -
-  // e.g. the "S/PDIF Source Playback Enum" (S/PDIF *output connector* select)
-  // that earlier Clarett Thunderbolt maps exposed - is not a sink; excluding
-  // "Source" keeps it out of the router, where it would have no channel
-  // number and desync the sink count (assert). Current maps fold the output
-  // connector into "S/PDIF Source Capture Enum", but older installed maps
-  // still create it.
-  if (strstr(elem->name, "Playback Enum") &&
-      !strstr(elem->name, "Source") && (
+  if (strstr(elem->name, "Playback Enum") && (
        strncmp(elem->name, "Analogue ", 9) == 0 ||
        strncmp(elem->name, "S/PDIF ", 7) == 0 ||
        strncmp(elem->name, "ADAT ", 5) == 0 ||
@@ -1084,12 +1073,8 @@ static void get_routing_snks(struct alsa_card *card) {
     } else if (strncmp(elem->name, "DSP", 3) == 0) {
       elem->port_category = PC_DSP;
     } else if (strncmp(elem->name, "PCM", 3) == 0 ||
-               strncmp(elem->name, "Loopback", 8) == 0 ||
                strncmp(elem->name, "Input Source", 12) == 0) {
-      // Loopback capture channels are part of the PCM capture stream (device -> host).
-      // Flag them so naming/pairing don't confuse "Loopback 1" with "PCM 01" (both lr_num 1).
       elem->port_category = PC_PCM;
-      elem->is_loopback = (strncmp(elem->name, "Loopback", 8) == 0);
     } else if (strstr(elem->name, "Playback Enu")) {
       elem->port_category = PC_HW;
 
