@@ -21,3 +21,14 @@ struct output_gain_widget {
 };
 
 GtkWidget *create_iface_mixer_main(struct alsa_card *card);
+
+// The group analogue output port_num (1-based) belongs to on a card that
+// names its outputs in groups (the Focusrite Red: "Monitor", "Headphones 1",
+// "Line Output"), or NULL. *pos is its 1-based position in the group; *knob
+// is set if the group is a stereo pair sharing one knob. g_free the result.
+char *get_output_group(
+  struct alsa_card *card,
+  int               port_num,
+  int              *pos,
+  int              *knob
+);

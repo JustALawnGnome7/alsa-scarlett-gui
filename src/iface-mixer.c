@@ -665,6 +665,61 @@ static int output_has_volume(struct alsa_card *card, int port_num) {
   return 0;
 }
 
+// The group analogue output port_num (1-based) belongs to, on a card that
+// names its outputs in groups (the Focusrite Red); NULL on any other card.
+// *pos is its 1-based position in that group and *knob says whether the
+// group is a pair sharing one knob (see merge_group_meters()).
+char *get_output_group(
+  struct alsa_card *card,
+  int               port_num,
+  int              *pos,
+  int              *knob
+) {
+  if (!card->name || strncmp(card->name, "Red ", 4) ||
+      !get_device_port_name(card, PC_HW, HW_TYPE_ANALOGUE, 1, 0))
+    return NULL;
+
+  char *names[3] = { NULL, NULL, NULL };   // the outputs before, at, after
+  for (int k = 0; k < 3; k++) {
+    struct routing_snk *snk = get_analogue_output_snk(card, port_num - 1 + k);
+    char *label = NULL;
+
+    if (snk)
+      split_output_name(get_routing_snk_display_name(snk), &names[k], &label);
+    g_free(label);
+  }
+
+  char *group = names[1];
+  if (group) {
+    *pos = 1;
+    for (int n = port_num - 1; n >= 1; n--) {
+      struct routing_snk *snk = get_analogue_output_snk(card, n);
+      char *g = NULL, *label = NULL;
+      int same = snk &&
+        split_output_name(get_routing_snk_display_name(snk), &g, &label) &&
+        !strcmp(g, group);
+
+      g_free(g);
+      g_free(label);
+      if (!same)
+        break;
+      (*pos)++;
+    }
+
+    // a pair: its first output has the knob, its second has none
+    int first = port_num - *pos + 1;
+    int is_pair_first = *pos == 1 && names[2] && !strcmp(names[2], group);
+    int is_pair_second = *pos == 2 &&
+                         !(names[2] && !strcmp(names[2], group));
+    *knob = (is_pair_first || is_pair_second) &&
+            output_has_volume(card, first) &&
+            !output_has_volume(card, first + 1);
+  }
+  g_free(names[0]);
+  g_free(names[2]);
+  return group;
+}
+
 // A pair in one group sharing one knob (see merge_group_meters()): its
 // channel labels would sit over a single control, so it gets none.
 static int output_pair_shares_knob(

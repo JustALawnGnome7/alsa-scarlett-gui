@@ -244,6 +244,81 @@ static void on_destroy(struct levels *data, GtkWidget *widget) {
   g_free(data);
 }
 
+// Whether a meter label type is the analogue outputs': fcp-server writes
+// "Sink " + the map's ALSA name, which is "Analogue Output N" on the
+// Thunderbolt Clarett and Red maps and "Analogue N" on others.
+static int is_analogue_sink_type(const char *type) {
+  return !strcmp(type, "Sink Analogue Output") ||
+         !strcmp(type, "Sink Analogue");
+}
+
+// On a card that names its outputs in groups (the Focusrite Red), the
+// analogue outputs are split by group the way S/PDIF, ADAT and Dante are by
+// type: the knob groups (Monitor, Headphones 1 and 2) share one row, every
+// other group gets its own, numbered within it. Replaces *label and
+// *label_num for such a meter; leaves them alone otherwise.
+static void regroup_analogue_meter(
+  struct alsa_card *card,
+  char            **label,
+  int              *label_num
+) {
+  int pos, knob;
+  char *group;
+
+  if (!is_analogue_sink_type(*label) ||
+      !(group = get_output_group(card, *label_num, &pos, &knob)))
+    return;
+
+  // every other row of this window is named after a port type ("Sink ADAT
+  // Output"), while the group names are the short port names the Routing
+  // window uses ("Line"), so say "Output" here as those rows do
+  if (!knob) {
+    size_t len = strlen(group);
+    int has_output = len >= 6 && !strcmp(group + len - 6, "Output");
+
+    free(*label);
+    *label = g_strdup_printf("Sink %s%s", group, has_output ? "" : " Output");
+    *label_num = pos;
+    g_free(group);
+    return;
+  }
+  g_free(group);
+
+  // the knob groups' row, named after their groups' first words
+  // ("Monitor / Headphones"); its columns number the knob outputs in order
+  GString *name = g_string_new("Sink");
+  char *last = NULL;
+  int num = 0;
+
+  for (int n = 1; ; n++) {
+    int p, k;
+    char *g = get_output_group(card, n, &p, &k);
+
+    if (!g)
+      break;
+    if (k) {
+      char *word = g_strndup(g, strcspn(g, " "));
+
+      if (n <= *label_num)
+        num++;
+      if (!last || strcmp(last, word)) {
+        g_string_append(name, last ? " / " : " ");
+        g_string_append(name, word);
+        g_free(last);
+        last = word;
+      } else {
+        g_free(word);
+      }
+    }
+    g_free(g);
+  }
+  g_free(last);
+
+  free(*label);
+  *label = g_string_free(name, FALSE);
+  *label_num = num;
+}
+
 static GtkWidget *create_levels_controls_with_labels(
   struct alsa_card *card,
   struct levels    *data
@@ -311,6 +386,8 @@ static GtkWidget *create_levels_controls_with_labels(
 
       label[label_idx - 1] = '\0';
     }
+
+    regroup_analogue_meter(card, &label, &label_num);
 
     if (label_num > max_count)
       max_count = label_num;
