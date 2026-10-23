@@ -227,6 +227,149 @@ static int update_levels_controls(void *user_data) {
   return 1;
 }
 
+// The window keeps its natural size (it is not resizable), but on a card
+// with many channels (a Focusrite Red has 64 PCM outputs) that would be
+// wider than the screen. Once the window is shown, cap the meters' width at
+// what the monitor leaves after the row labels and the window's frame; the
+// meters then scroll sideways inside the red border.
+#define LEVELS_SCREEN_MARGIN 48
+
+static void cap_levels_width(GtkWidget *scrolled, gpointer data) {
+  GtkWidget *frame = data;
+  GtkNative *native = gtk_widget_get_native(scrolled);
+  GdkSurface *surface = native ? gtk_native_get_surface(native) : NULL;
+
+  if (!surface)
+    return;
+
+  GdkDisplay *display = gdk_surface_get_display(surface);
+  GdkMonitor *monitor = gdk_display_get_monitor_at_surface(display, surface);
+
+  if (!monitor) {
+    GListModel *monitors = gdk_display_get_monitors(display);
+
+    if (g_list_model_get_n_items(monitors) == 0)
+      return;
+    monitor = g_list_model_get_item(monitors, 0);
+    g_object_unref(monitor);
+  }
+
+  GdkRectangle geometry;
+  gdk_monitor_get_geometry(monitor, &geometry);
+
+  // everything but the meters: row labels, paddings and the red border
+  int frame_w, meters_w;
+  gtk_widget_measure(
+    frame, GTK_ORIENTATION_HORIZONTAL, -1, NULL, &frame_w, NULL, NULL
+  );
+  gtk_widget_measure(
+    gtk_scrolled_window_get_child(GTK_SCROLLED_WINDOW(scrolled)),
+    GTK_ORIENTATION_HORIZONTAL, -1, NULL, &meters_w, NULL, NULL
+  );
+  int max_w = geometry.width - (frame_w - meters_w) - LEVELS_SCREEN_MARGIN;
+
+  gtk_scrolled_window_set_max_content_width(
+    GTK_SCROLLED_WINDOW(scrolled), MAX(max_w, 100)
+  );
+}
+
+// Lay the window out as frame -> red-bordered box -> [row labels | meters].
+// The builders put each row's label in column 0 of the one grid; those move
+// to a grid of their own that does not scroll, so the labels stay visible
+// while the meters scroll sideways, and a size group per row keeps each
+// label level with its meters. The box takes the grid's styling (the red
+// border) and fills the window.
+static void split_label_column(struct levels *data) {
+  GtkWidget *frame = data->top;
+  GtkWidget *grid = GTK_WIDGET(data->grid);
+  static const char *classes[] = {
+    "window-content", "top-level-content", "window-levels", NULL
+  };
+
+  GtkWidget *box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+  for (const char **c = classes; *c; c++) {
+    gtk_widget_remove_css_class(grid, *c);
+    gtk_widget_add_css_class(box, *c);
+  }
+
+  GtkWidget *labels = gtk_grid_new();
+  gtk_grid_set_row_spacing(
+    GTK_GRID(labels), gtk_grid_get_row_spacing(data->grid)
+  );
+  gtk_widget_set_margin_end(labels, gtk_grid_get_column_spacing(data->grid));
+
+  g_object_ref(grid);
+  gtk_frame_set_child(GTK_FRAME(frame), NULL);
+
+  // move the labels out of column 0
+  GPtrArray *moved = g_ptr_array_new();
+  for (GtkWidget *c = gtk_widget_get_first_child(grid); c;
+       c = gtk_widget_get_next_sibling(c)) {
+    int col, row;
+
+    gtk_grid_query_child(data->grid, c, &col, &row, NULL, NULL);
+    if (col == 0)
+      g_ptr_array_add(moved, c);
+  }
+  for (int i = 0; i < moved->len; i++) {
+    GtkWidget *c = g_ptr_array_index(moved, i);
+    int row;
+
+    gtk_grid_query_child(data->grid, c, NULL, &row, NULL, NULL);
+    g_object_ref(c);
+    gtk_grid_remove(data->grid, c);
+    gtk_grid_attach(GTK_GRID(labels), c, 0, row, 1, 1);
+    g_object_unref(c);
+  }
+  g_ptr_array_free(moved, TRUE);
+
+  // one height per row across the two grids (an empty label stands in for
+  // a row with no label, such as the column numbers)
+  GHashTable *rows = g_hash_table_new(NULL, NULL);
+  for (GtkWidget *c = gtk_widget_get_first_child(grid); c;
+       c = gtk_widget_get_next_sibling(c)) {
+    int row;
+
+    gtk_grid_query_child(data->grid, c, NULL, &row, NULL, NULL);
+    if (g_hash_table_contains(rows, GINT_TO_POINTER(row)))
+      continue;
+    g_hash_table_add(rows, GINT_TO_POINTER(row));
+
+    GtkWidget *l = gtk_grid_get_child_at(GTK_GRID(labels), 0, row);
+    if (!l) {
+      l = gtk_label_new(NULL);
+      gtk_grid_attach(GTK_GRID(labels), l, 0, row, 1, 1);
+    }
+
+    GtkSizeGroup *group = gtk_size_group_new(GTK_SIZE_GROUP_VERTICAL);
+    gtk_size_group_add_widget(group, l);
+    gtk_size_group_add_widget(group, c);
+    g_object_unref(group);
+  }
+  g_hash_table_destroy(rows);
+
+  GtkWidget *scrolled = gtk_scrolled_window_new();
+  gtk_scrolled_window_set_policy(
+    GTK_SCROLLED_WINDOW(scrolled), GTK_POLICY_AUTOMATIC, GTK_POLICY_NEVER
+  );
+  gtk_scrolled_window_set_propagate_natural_width(
+    GTK_SCROLLED_WINDOW(scrolled), TRUE
+  );
+  gtk_scrolled_window_set_propagate_natural_height(
+    GTK_SCROLLED_WINDOW(scrolled), TRUE
+  );
+  gtk_widget_set_hexpand(scrolled, TRUE);
+  gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scrolled), grid);
+  g_object_unref(grid);
+
+  gtk_box_append(GTK_BOX(box), labels);
+  gtk_box_append(GTK_BOX(box), scrolled);
+  gtk_frame_set_child(GTK_FRAME(frame), box);
+
+  g_signal_connect(scrolled, "map", G_CALLBACK(cap_levels_width), frame);
+
+}
+
 static GtkWidget *add_count_label(GtkGrid *grid, int count) {
   char s[20];
 
@@ -438,6 +581,8 @@ static GtkWidget *create_levels_controls_with_labels(
     gtk_grid_attach(GTK_GRID(data->grid), l, col, 0, 1, 1);
   }
 
+  split_label_column(data);
+
   card->levels_data = data;
   card->levels_timer = g_timeout_add(
     card->pref_levels_interval_ms, update_levels_controls, data
@@ -535,6 +680,8 @@ GtkWidget *create_levels_controls(struct alsa_card *card) {
 
   if (meter_num != elem_count)
     printf("meter_num is %d but elem count is %d\n", meter_num, elem_count);
+
+  split_label_column(data);
 
   card->levels_data = data;
   card->levels_timer = g_timeout_add(
