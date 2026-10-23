@@ -1202,8 +1202,26 @@ static void create_input_pad_control(
 }
 
 // High-pass filter and phase (polarity) invert: per-preamp switches on the
-// Focusrite Red. No other device names a control this way, so the rows only
-// ever appear there.
+// Focusrite Red. No other device names a control this way, so the row only
+// ever appears there. The two share one row, side by side in a box per input
+// column; whichever is created first makes the box.
+static void attach_input_pair_button(
+  GtkWidget *grid,
+  GtkWidget *w,
+  int        current_row,
+  int        column_num
+) {
+  GtkWidget *box = gtk_grid_get_child_at(GTK_GRID(grid), column_num, current_row);
+
+  if (!box) {
+    box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+    gtk_box_set_homogeneous(GTK_BOX(box), TRUE);
+    gtk_widget_set_hexpand(box, TRUE);
+    gtk_grid_attach(GTK_GRID(grid), box, column_num, current_row, 1, 1);
+  }
+  gtk_box_append(GTK_BOX(box), w);
+}
+
 static void create_input_hpf_control(
   struct alsa_elem *elem,
   GtkWidget        *grid,
@@ -1219,7 +1237,7 @@ static void create_input_hpf_control(
     "low-frequency rumble and handling noise."
   );
 
-  gtk_grid_attach(GTK_GRID(grid), w, column_num, current_row, 1, 1);
+  attach_input_pair_button(grid, w, current_row, column_num);
 }
 
 static void create_input_phase_control(
@@ -1236,7 +1254,7 @@ static void create_input_phase_control(
     "Enabling Phase inverts the polarity of the channel's signal."
   );
 
-  gtk_grid_attach(GTK_GRID(grid), w, column_num, current_row, 1, 1);
+  attach_input_pair_button(grid, w, current_row, column_num);
 }
 
 static void create_input_gain_switch_control(
@@ -1445,14 +1463,17 @@ static void create_input_controls(
     elems, input_grid, &current_row,
     "Air Capture Enum", create_input_air_enum_control
   );
+  // HPF and phase on one row: each call advances its own copy of the row
+  int hpf_row = current_row;
   create_input_controls_by_type(
-    elems, input_grid, &current_row,
+    elems, input_grid, &hpf_row,
     "High Pass Filter Capture Switch", create_input_hpf_control
   );
   create_input_controls_by_type(
     elems, input_grid, &current_row,
     "Phase Invert Capture Switch", create_input_phase_control
   );
+  current_row = MAX(current_row, hpf_row);
   create_input_controls_by_type(
     elems, input_grid, &current_row,
     "DSP Capture Switch", create_input_dsp_switch_control
