@@ -26,7 +26,8 @@
 #define HISTORY_COUNT 50
 
 static int set_value(GtkDial *dial, double newval);
-static int set_level(GtkDial *dial, double newlevel);
+struct dial_meter;
+static int set_level(GtkDial *dial, struct dial_meter *m, double newlevel);
 
 static void gtk_dial_set_property(
   GObject      *object,
@@ -111,6 +112,19 @@ enum {
 };
 
 static guint signals[LAST_SIGNAL];
+
+// one channel's level meter, with the history for its peak hold
+struct dial_meter {
+  double level;           // current signal level in dB
+  double level_valp;      // normalised level position (0-1)
+  double level_angle;     // angle for level arc
+  double peak_angle;      // angle of the held peak
+
+  double hist_values[HISTORY_COUNT];
+  long long hist_time[HISTORY_COUNT];
+  double current_peak;
+  int hist_head, hist_tail, hist_count;
+};
 static GParamSpec *properties[LAST_PROP];
 
 struct _GtkDial {
@@ -177,21 +191,12 @@ struct _GtkDial {
   double slider_cx;
   double slider_cy;
 
-  // level metering (separate from value)
-  double level;           // current signal level in dB
-  double level_valp;      // normalised level position (0-1)
-  double level_angle;     // angle for level arc
+  // level metering (separate from value): one meter per channel, the
+  // second drawn as an inner arc on a stereo dial
+  struct dial_meter meter[GTK_DIAL_MAX_LEVELS];
+  int level_count;        // channels shown (1, or 2 for stereo)
   gboolean show_level;    // whether to show level meter
   gboolean show_value;    // whether to show value arc (defaults TRUE)
-
-  // peak tracking (applies to level, not value)
-  double peak_angle;
-
-  // value history for displaying peak
-  double hist_values[HISTORY_COUNT];
-  long long hist_time[HISTORY_COUNT];
-  double current_peak;
-  int hist_head, hist_tail, hist_count;
 };
 
 G_DEFINE_TYPE(GtkDial, gtk_dial, GTK_TYPE_WIDGET)
@@ -490,16 +495,21 @@ static void update_dial_values(GtkDial *dial) {
   dial->slider_cy = sin(dial->angle) * dial->slider_radius + dial->cy;
 }
 
-static void update_dial_level_values(GtkDial *dial) {
+static void update_meter_values(GtkDial *dial, struct dial_meter *m) {
   // update level display values using level_adj (dB range)
-  dial->level_valp = calc_taper_adj(dial, dial->level_adj, dial->level, FALSE);
-  dial->level_angle = calc_val(dial->level_valp, ANGLE_START, ANGLE_END);
+  m->level_valp = calc_taper_adj(dial, dial->level_adj, m->level, FALSE);
+  m->level_angle = calc_val(m->level_valp, ANGLE_START, ANGLE_END);
 
   if (!dial->peak_hold)
     return;
 
-  double peak_valp = calc_taper_adj(dial, dial->level_adj, dial->current_peak, FALSE);
-  dial->peak_angle = calc_val(peak_valp, ANGLE_START, ANGLE_END);
+  double peak_valp = calc_taper_adj(dial, dial->level_adj, m->current_peak, FALSE);
+  m->peak_angle = calc_val(peak_valp, ANGLE_START, ANGLE_END);
+}
+
+static void update_dial_level_values(GtkDial *dial) {
+  for (int ch = 0; ch < GTK_DIAL_MAX_LEVELS; ch++)
+    update_meter_values(dial, &dial->meter[ch]);
 }
 
 static double pdist2(double x1, double y1, double x2, double y2) {
@@ -810,12 +820,16 @@ static void gtk_dial_init(GtkDial *dial) {
   );
   gtk_widget_add_controller(GTK_WIDGET(dial), controller);
 
-  dial->current_peak = -INFINITY;
-  dial->hist_head = 0;
-  dial->hist_tail = 0;
-  dial->hist_count = 0;
+  for (int ch = 0; ch < GTK_DIAL_MAX_LEVELS; ch++) {
+    struct dial_meter *m = &dial->meter[ch];
 
-  dial->level = -80.0;
+    m->current_peak = -INFINITY;
+    m->hist_head = 0;
+    m->hist_tail = 0;
+    m->hist_count = 0;
+    m->level = -80.0;
+  }
+  dial->level_count = 1;
   dial->show_level = FALSE;
 
   // create level adjustment with dB range
@@ -859,13 +873,18 @@ static void cairo_set_source_rgba_dim(
     cairo_set_source_rgba(cr, r, g, b, a);
 }
 
-static void draw_peak(GtkDial *dial, cairo_t *cr, double radius) {
+static void draw_peak(
+  GtkDial           *dial,
+  struct dial_meter *m,
+  cairo_t           *cr,
+  double             radius
+) {
 
   // don't draw if peak is at or below minimum
-  if (dial->peak_angle <= ANGLE_START)
+  if (m->peak_angle <= ANGLE_START)
     return;
 
-  double angle_start = dial->peak_angle - M_PI / 180;
+  double angle_start = m->peak_angle - M_PI / 180;
   if (angle_start < ANGLE_START)
     angle_start = ANGLE_START;
 
@@ -879,7 +898,7 @@ static void draw_peak(GtkDial *dial, cairo_t *cr, double radius) {
   int i;
 
   for (i = 0; i < count - 1; i++)
-    if (dial->current_peak < dial->level_breakpoints[i + 1])
+    if (m->current_peak < dial->level_breakpoints[i + 1])
       break;
 
   const double *colours = &dial->level_colours[i * 3];
@@ -888,19 +907,26 @@ static void draw_peak(GtkDial *dial, cairo_t *cr, double radius) {
     cr, colours[0], colours[1], colours[2], 0.5, 0
   );
   cairo_set_line_width(cr, 2);
-  cairo_arc(cr, dial->cx, dial->cy, radius, ANGLE_START, dial->peak_angle);
+  cairo_arc(cr, dial->cx, dial->cy, radius, ANGLE_START, m->peak_angle);
   cairo_stroke(cr);
 
   cairo_set_source_rgba_dim(
     cr, colours[0], colours[1], colours[2], 1, 0
   );
   cairo_set_line_width(cr, 4);
-  cairo_arc(cr, dial->cx, dial->cy, radius, angle_start, dial->peak_angle);
+  cairo_arc(cr, dial->cx, dial->cy, radius, angle_start, m->peak_angle);
   cairo_stroke(cr);
 }
 
+// the text shows the highest peak of all the channels
 static void show_peak_value(GtkDial *dial, cairo_t *cr) {
-  double value = round(dial->current_peak);
+  double peak = dial->meter[0].current_peak;
+
+  for (int ch = 1; ch < dial->level_count; ch++)
+    if (dial->meter[ch].current_peak > peak)
+      peak = dial->meter[ch].current_peak;
+
+  double value = round(peak);
 
   if (value <= gtk_adjustment_get_lower(dial->level_adj))
     return;
@@ -929,18 +955,19 @@ static void show_peak_value(GtkDial *dial, cairo_t *cr) {
 
 // draw the level arc (coloured, uses level_angle)
 static void draw_level_arc(
-  GtkDial  *dial,
-  cairo_t  *cr,
-  double    radius,
-  double    thickness,
-  double    alpha
+  GtkDial           *dial,
+  struct dial_meter *m,
+  cairo_t           *cr,
+  double             radius,
+  double             thickness,
+  double             alpha
 ) {
   cairo_set_line_width(cr, thickness);
 
   int count = dial->level_breakpoints_count;
 
   if (!count) {
-    cairo_arc(cr, dial->cx, dial->cy, radius, ANGLE_START, dial->level_angle);
+    cairo_arc(cr, dial->cx, dial->cy, radius, ANGLE_START, m->level_angle);
     cairo_set_source_rgba_dim(cr, 1, 1, 1, alpha, 0);
     cairo_stroke(cr);
     return;
@@ -949,7 +976,7 @@ static void draw_level_arc(
   // if the last breakpoint is at the upper limit, then the maximum
   // value is displayed with the whole arc in that colour
   if (dial->level_breakpoint_angles[count - 1] == ANGLE_END &&
-      dial->level_angle == ANGLE_END) {
+      m->level_angle == ANGLE_END) {
     const double *colours = &dial->level_colours[(count - 1) * 3];
 
     cairo_set_source_rgba_dim(
@@ -980,8 +1007,8 @@ static void draw_level_arc(
         ? ANGLE_END
         : dial->level_breakpoint_angles[i + 1];
 
-    if (dial->level_angle < angle_end) {
-      cairo_arc(cr, dial->cx, dial->cy, radius, angle_start, dial->level_angle);
+    if (m->level_angle < angle_end) {
+      cairo_arc(cr, dial->cx, dial->cy, radius, angle_start, m->level_angle);
       cairo_stroke(cr);
       return;
     }
@@ -1010,22 +1037,23 @@ static void draw_value_arc(
 
 // draw level indicator with blur/glow at specified radius
 static void draw_level_indicator(
-  GtkDial  *dial,
-  cairo_t  *cr,
-  double    radius,
-  double    shadow_radius
+  GtkDial           *dial,
+  struct dial_meter *m,
+  cairo_t           *cr,
+  double             radius,
+  double             shadow_radius
 ) {
-  if (dial->level_valp <= 0.0)
+  if (m->level_valp <= 0.0)
     return;
 
   // outside level shadow
-  draw_level_arc(dial, cr, shadow_radius, dial->slider_thickness / 2, 0.1);
+  draw_level_arc(dial, m, cr, shadow_radius, dial->slider_thickness / 2, 0.1);
   // level blur 2
-  draw_level_arc(dial, cr, radius, 6, 0.3);
+  draw_level_arc(dial, m, cr, radius, 6, 0.3);
   // level blur 1
-  draw_level_arc(dial, cr, radius, 4, 0.5);
+  draw_level_arc(dial, m, cr, radius, 4, 0.5);
   // level arc (keep bright)
-  draw_level_arc(dial, cr, radius, 2, 1);
+  draw_level_arc(dial, m, cr, radius, 2, 1);
 }
 
 // draw a tick mark symmetrical about the arc path
@@ -1164,23 +1192,29 @@ static void dial_snapshot(GtkWidget *widget, GtkSnapshot *snapshot) {
   cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
 
   if (dial->peak_hold && dial->show_level && !dial->show_value)
-    draw_peak(dial, cr, dial->slider_radius);
+    draw_peak(dial, &dial->meter[0], cr, dial->slider_radius);
 
-  // 8. level arc on outer ring (level-only dials)
+  // 8. level arc on outer ring (level-only dials; first channel only)
   if (dial->show_level && !dial->show_value)
     draw_level_indicator(
-      dial, cr,
+      dial, &dial->meter[0], cr,
       dial->slider_radius, dial->background_radius
     );
 
-  // 9. level arc inside knob (dual-purpose dials)
+  // 9. level arc inside knob (dual-purpose dials); a stereo dial draws
+  // the second channel as a second arc just inside the first
   if (dial->show_level && dial->show_value) {
-    if (dial->peak_hold)
-      draw_peak(dial, cr, dial->knob_radius);
+    double gap = MAX(4, dial->slider_thickness / 3);
 
-    draw_level_indicator(
-      dial, cr, dial->knob_radius, dial->knob_radius
-    );
+    for (int ch = 0; ch < dial->level_count; ch++) {
+      struct dial_meter *m = &dial->meter[ch];
+      double radius = dial->knob_radius - ch * gap;
+
+      if (dial->peak_hold)
+        draw_peak(dial, m, cr, radius);
+
+      draw_level_indicator(dial, m, cr, radius, radius);
+    }
   }
 
   // 10. peak value text
@@ -1316,7 +1350,7 @@ static void gtk_dial_get_property(
       g_value_set_int(value, dial->peak_hold);
       break;
     case PROP_LEVEL:
-      g_value_set_double(value, dial->level);
+      g_value_set_double(value, dial->meter[0].level);
       break;
     case PROP_SHOW_LEVEL:
       g_value_set_boolean(value, dial->show_level);
@@ -1457,12 +1491,27 @@ int gtk_dial_get_peak_hold(GtkDial *dial) {
 }
 
 void gtk_dial_set_level(GtkDial *dial, double level) {
-  if (set_level(dial, level))
-    gtk_widget_queue_draw(GTK_WIDGET(dial));
+  gtk_dial_set_level_channel(dial, 0, level);
 }
 
 double gtk_dial_get_level(GtkDial *dial) {
-  return dial->level;
+  return dial->meter[0].level;
+}
+
+void gtk_dial_set_level_channel(GtkDial *dial, int channel, double level) {
+  if (channel < 0 || channel >= GTK_DIAL_MAX_LEVELS)
+    return;
+  if (set_level(dial, &dial->meter[channel], level))
+    gtk_widget_queue_draw(GTK_WIDGET(dial));
+}
+
+void gtk_dial_set_level_count(GtkDial *dial, int count) {
+  dial->level_count = CLAMP(count, 1, GTK_DIAL_MAX_LEVELS);
+  gtk_widget_queue_draw(GTK_WIDGET(dial));
+}
+
+int gtk_dial_get_level_count(GtkDial *dial) {
+  return dial->level_count;
 }
 
 void gtk_dial_set_show_level(GtkDial *dial, gboolean show_level) {
@@ -1503,44 +1552,48 @@ GtkAdjustment *gtk_dial_get_adjustment(GtkDial *dial) {
   return dial->adj;
 }
 
-static void gtk_dial_add_hist_value(GtkDial *dial, double value) {
+static void gtk_dial_add_hist_value(
+  GtkDial           *dial,
+  struct dial_meter *m,
+  double             value
+) {
 
   int need_peak_update = 0;
 
   // remove the oldest value(s) if they are too old or if the history
   // is full
-  while (dial->hist_count > 0 &&
-         (dial->hist_time[dial->hist_head] < current_time - dial->peak_hold ||
-          dial->hist_count == HISTORY_COUNT)) {
+  while (m->hist_count > 0 &&
+         (m->hist_time[m->hist_head] < current_time - dial->peak_hold ||
+          m->hist_count == HISTORY_COUNT)) {
 
     // check if the value removed is the current peak
-    if (dial->hist_values[dial->hist_head] >= dial->current_peak)
+    if (m->hist_values[m->hist_head] >= m->current_peak)
       need_peak_update = 1;
 
     // move the head forward
-    dial->hist_head = (dial->hist_head + 1) % HISTORY_COUNT;
-    dial->hist_count--;
+    m->hist_head = (m->hist_head + 1) % HISTORY_COUNT;
+    m->hist_count--;
   }
 
   // recalculate the peak if needed
   if (need_peak_update) {
-    dial->current_peak = -INFINITY;
-    for (int i = dial->hist_head;
-         i != dial->hist_tail;
+    m->current_peak = -INFINITY;
+    for (int i = m->hist_head;
+         i != m->hist_tail;
          i = (i + 1) % HISTORY_COUNT)
-      if (dial->hist_values[i] > dial->current_peak)
-        dial->current_peak = dial->hist_values[i];
+      if (m->hist_values[i] > m->current_peak)
+        m->current_peak = m->hist_values[i];
   }
 
   // add the new value
-  dial->hist_values[dial->hist_tail] = value;
-  dial->hist_time[dial->hist_tail] = current_time;
-  dial->hist_tail = (dial->hist_tail + 1) % HISTORY_COUNT;
-  dial->hist_count++;
+  m->hist_values[m->hist_tail] = value;
+  m->hist_time[m->hist_tail] = current_time;
+  m->hist_tail = (m->hist_tail + 1) % HISTORY_COUNT;
+  m->hist_count++;
 
   // update the peak if needed
-  if (value > dial->current_peak)
-    dial->current_peak = value;
+  if (value > m->current_peak)
+    m->current_peak = value;
 }
 
 static int set_value(GtkDial *dial, double newval) {
@@ -1582,25 +1635,25 @@ static int set_value(GtkDial *dial, double newval) {
 
 // set the level value for metering (this tracks peaks)
 // level is always in dB, using level_adj range
-static int set_level(GtkDial *dial, double newlevel) {
-  double old_level = dial->level;
-  double old_peak = dial->current_peak;
+static int set_level(GtkDial *dial, struct dial_meter *m, double newlevel) {
+  double old_level = m->level;
+  double old_peak = m->current_peak;
 
   // track peaks from level
-  gtk_dial_add_hist_value(dial, newlevel);
+  gtk_dial_add_hist_value(dial, m, newlevel);
 
-  dial->level = newlevel;
+  m->level = newlevel;
 
-  if (old_level == newlevel && old_peak == dial->current_peak)
+  if (old_level == newlevel && old_peak == m->current_peak)
     return 0;
 
   // update level display values using level_adj (dB range)
-  dial->level_valp = calc_taper_adj(dial, dial->level_adj, newlevel, FALSE);
-  dial->level_angle = calc_val(dial->level_valp, ANGLE_START, ANGLE_END);
+  m->level_valp = calc_taper_adj(dial, dial->level_adj, newlevel, FALSE);
+  m->level_angle = calc_val(m->level_valp, ANGLE_START, ANGLE_END);
 
   // update peak angle
-  double peak_valp = calc_taper_adj(dial, dial->level_adj, dial->current_peak, FALSE);
-  dial->peak_angle = calc_val(peak_valp, ANGLE_START, ANGLE_END);
+  double peak_valp = calc_taper_adj(dial, dial->level_adj, m->current_peak, FALSE);
+  m->peak_angle = calc_val(peak_valp, ANGLE_START, ANGLE_END);
 
   return 1;
 }

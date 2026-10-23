@@ -17,6 +17,7 @@ struct output_gain_widget {
   GtkWidget          *widget;
   int                 port_num;     // 1-based port number
   struct routing_snk *r_snk;        // routing sink for level lookup
+  struct routing_snk *r_snk2;       // second channel of a stereo dial, or NULL
 };
 
 GtkWidget *create_iface_mixer_main(struct alsa_card *card);

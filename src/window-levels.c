@@ -180,8 +180,20 @@ static int update_levels_controls(void *user_data) {
         level_db = -INFINITY;
 
       GtkWidget *dial = get_gain_dial(og->widget);
-      if (dial)
-        gtk_dial_set_level(GTK_DIAL(dial), level_db);
+      if (!dial)
+        continue;
+      gtk_dial_set_level(GTK_DIAL(dial), level_db);
+
+      // second channel of a stereo dial (a knob group's other output)
+      if (!og->r_snk2)
+        continue;
+      index = get_routing_snk_level_index(og->r_snk2);
+      if (index < 0)
+        continue;
+      level_db = card->routing_levels[index];
+      if (is_snk_monitor_muted(og->r_snk2))
+        level_db = -INFINITY;
+      gtk_dial_set_level_channel(GTK_DIAL(dial), 1, level_db);
     }
   }
 

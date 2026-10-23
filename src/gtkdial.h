@@ -101,8 +101,15 @@ void gtk_dial_set_peak_hold(GtkDial *dial, int peak_hold);
 int gtk_dial_get_peak_hold(GtkDial *dial);
 void gtk_dial_peak_tick(void);
 
+// a dial can meter up to two channels (stereo); the second is drawn as
+// an inner arc on dials that show both a value and a level
+#define GTK_DIAL_MAX_LEVELS 2
+
 void gtk_dial_set_level(GtkDial *dial, double level);
 double gtk_dial_get_level(GtkDial *dial);
+void gtk_dial_set_level_channel(GtkDial *dial, int channel, double level);
+void gtk_dial_set_level_count(GtkDial *dial, int count);
+int gtk_dial_get_level_count(GtkDial *dial);
 void gtk_dial_set_show_level(GtkDial *dial, gboolean show_level);
 gboolean gtk_dial_get_show_level(GtkDial *dial);
 void gtk_dial_set_show_value(GtkDial *dial, gboolean show_value);

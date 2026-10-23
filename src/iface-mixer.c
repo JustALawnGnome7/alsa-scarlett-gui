@@ -4,6 +4,7 @@
 #include "custom-names.h"
 #include "device-port-names.h"
 #include "glow.h"
+#include "gtkdial.h"
 #include "gtkhelper.h"
 #include "iface-mixer.h"
 #include "presets.h"
@@ -650,6 +651,32 @@ static void output_header_attach(
   g_ptr_array_add(h->widgets, w);
 }
 
+// Whether analogue output port_num (1-based) has a volume control of its
+// own. A knob group's second output has none: its group shares one knob.
+static int output_has_volume(struct alsa_card *card, int port_num) {
+  for (int i = 0; i < card->elems->len; i++) {
+    struct alsa_elem *elem = g_ptr_array_index(card->elems, i);
+
+    if (elem->card && elem->lr_num == port_num &&
+        strncmp(elem->name, "Line", 4) == 0 &&
+        strstr(elem->name, "Playback Volume"))
+      return 1;
+  }
+  return 0;
+}
+
+// A pair in one group sharing one knob (see merge_group_meters()): its
+// channel labels would sit over a single control, so it gets none.
+static int output_pair_shares_knob(
+  struct output_header *h,
+  char                **groups,
+  int                   i
+) {
+  return i + 1 < h->count && !strcmp(groups[i], groups[i + 1]) &&
+         output_has_volume(h->card, i + 1) &&
+         !output_has_volume(h->card, i + 2);
+}
+
 static void output_header_build(struct output_header *h) {
   for (int i = 0; i < h->widgets->len; i++)
     gtk_grid_remove(GTK_GRID(h->grid), g_ptr_array_index(h->widgets, i));
@@ -688,10 +715,15 @@ static void output_header_build(struct output_header *h) {
       output_header_attach(
         h, gtk_label_new(groups[i]), i + h->col0, -1, run
       );
-      for (int j = i; j < i + run; j++)
+      for (int j = i; j < i + run; j++) {
+        if (output_pair_shares_knob(h, groups, j)) {
+          j++;
+          continue;
+        }
         output_header_attach(
           h, gtk_label_new(labels[j]), j + h->col0, 0, 1
         );
+      }
       i += run;
     }
   }
@@ -793,6 +825,51 @@ static void span_group_controls(
         );
       i = j;
     }
+  }
+}
+
+static struct output_gain_widget *find_output_gain_widget(
+  struct alsa_card *card,
+  int               port_num
+) {
+  for (GList *l = card->output_gain_widgets; l; l = l->next) {
+    struct output_gain_widget *og = l->data;
+
+    if (og->port_num == port_num)
+      return og;
+  }
+  return NULL;
+}
+
+// A knob group with one level control (the Red's Monitor and Headphones
+// groups: one fader for a stereo pair) has a fader on its first output
+// only, which span_group_controls() stretches across the group. Give that
+// fader the second output's level as well, as an inner arc, so the one
+// knob meters both channels.
+static void merge_group_meters(
+  struct alsa_card     *card,
+  struct output_header *h
+) {
+  if (!h->groups)
+    return;
+
+  for (int i = 0; i + 1 < h->count; i++) {
+    struct output_gain_widget *og = find_output_gain_widget(card, i + 1);
+
+    if (!og || !og->r_snk ||
+        strcmp(h->groups[i], h->groups[i + 1]) ||
+        find_output_gain_widget(card, i + 2))
+      continue;
+
+    struct routing_snk *r_snk2 = get_output_r_snk(card, i + 2);
+    GtkWidget *dial = get_gain_dial(og->widget);
+
+    if (!r_snk2 || !dial)
+      continue;
+
+    og->r_snk2 = r_snk2;
+    gtk_dial_set_level_count(GTK_DIAL(dial), 2);
+    i++;
   }
 }
 
@@ -1549,6 +1626,7 @@ static void create_output_controls(
         og->widget = w;
         og->port_num = elem->lr_num;
         og->r_snk = r_snk;
+        og->r_snk2 = NULL;
         card->output_gain_widgets = g_list_append(card->output_gain_widgets, og);
 
       } else if (strstr(elem->name, "Dim Playback Switch")) {
@@ -1675,6 +1753,7 @@ static void create_output_controls(
 
   // Fader, mute, dim and SW/HW rows
   span_group_controls(header, 2, sw_hw_row);
+  merge_group_meters(card, header);
 
   // Add monitor group indicator labels for each output
   for (int i = 0; i < output_count; i++) {
