@@ -373,6 +373,14 @@ int alsa_get_elem_writable(struct alsa_elem *elem) {
   snd_ctl_elem_info_set_numid(elem_info, elem->numid);
   snd_ctl_elem_info(elem->card->handle, elem_info);
 
+  // An output's volume and mute are read-only while the output is
+  // under hardware (knob) control. Decided from the switch itself:
+  // a driver may only lock the control, and a lock raises no event, so
+  // its state can lag the switch.
+  if (elem->sw_hw_elem)
+    return snd_ctl_elem_info_is_writable(elem_info) &&
+           !alsa_get_elem_value(elem->sw_hw_elem);
+
   return snd_ctl_elem_info_is_writable(elem_info) &&
          !snd_ctl_elem_info_is_locked(elem_info);
 }

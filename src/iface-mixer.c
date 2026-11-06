@@ -44,6 +44,30 @@ static struct routing_snk *get_output_r_snk(
   return NULL;
 }
 
+// An output's SW/HW switch changed: have its volume and mute widgets
+// re-check whether they can be edited
+static void sw_hw_changed(struct alsa_elem *sw_hw, void *data) {
+  alsa_elem_change(data);
+}
+
+// Tie an output's volume and mute controls to its SW/HW switch
+static void link_sw_hw(GPtrArray *elems, struct alsa_elem *sw_hw) {
+  for (int i = 0; i < elems->len; i++) {
+    struct alsa_elem *elem = g_ptr_array_index(elems, i);
+
+    if (!elem->card || elem == sw_hw || elem->lr_num != sw_hw->lr_num ||
+        strncmp(elem->name, "Line", 4) != 0)
+      continue;
+
+    if (!strstr(elem->name, "Playback Volume") &&
+        !strstr(elem->name, "Mute Playback Switch"))
+      continue;
+
+    elem->sw_hw_elem = sw_hw;
+    alsa_elem_add_callback(sw_hw, sw_hw_changed, elem, NULL);
+  }
+}
+
 static void add_clock_source_control(
   struct alsa_card *card,
   GtkWidget        *global_controls
@@ -1227,6 +1251,7 @@ static void create_output_controls(
       } else if (strstr(elem->name, "Volume Control Playback Enum")) {
         w = make_boolean_alsa_elem(elem, "SW", "HW");
         gtk_widget_add_css_class(w, "sw-hw");
+        link_sw_hw(elems, elem);
         gtk_widget_set_tooltip_text(
           w,
           "Set software-controlled (SW) or hardware-controlled (HW) "

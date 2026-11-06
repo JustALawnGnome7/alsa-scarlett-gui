@@ -247,6 +247,10 @@ struct alsa_elem {
   // for simulated elements, the current state
   int  is_simulated;
   int  is_writable;
+
+  // the output SW/HW switch this volume or mute follows, or NULL;
+  // the control is read-only while that switch is set to HW
+  struct alsa_elem *sw_hw_elem;
   int  is_volatile;
   long  value;
   long *values;  // cached multi-value integer state
